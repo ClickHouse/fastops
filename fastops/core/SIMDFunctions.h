@@ -10,7 +10,7 @@
 #include <xmmintrin.h>
 #include <immintrin.h>
 
-#if defined(__clang_major__) && !defined(__apple_build_version__) && __clang_major__ >= 8
+#if defined(__clang_major__) && !defined(__apple_build_version__) && __clang_major__ >= 8 || __GNUC__  >= 11
 #   define Y_HAVE_NEW_INTRINSICS
 #endif
 
