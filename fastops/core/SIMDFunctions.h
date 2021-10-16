@@ -3,6 +3,8 @@
 #ifndef SIMD_FUNCTIONS_H
 #define SIMD_FUNCTIONS_H
 
+#include <stdint.h>
+
 #if defined(_MSC_VER) && !defined(__clang__)
 #include <intrin.h>
 #else
