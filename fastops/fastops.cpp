@@ -1,8 +1,38 @@
 #include "fastops.h"
 
-#include <fastops/avx2/ops_avx2.h>
+#if defined(__aarch64__) || defined(_M_ARM64)
 
-#ifdef __AVX2__
+#include <fastops/neon/ops_neon.h>
+
+// AArch64: always use NEON.
+namespace NFastOps {
+    template <bool I_Exact, bool I_OutAligned>
+    void Exp(const float* from, size_t size, float* to) { ExpNeon<I_Exact, I_OutAligned>(from, size, to); }
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Exp(const double* from, size_t size, double* to) { ExpNeon<I_Exact, I_OutAligned>(from, size, to); }
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Log(const float* from, size_t size, float* to) { LogNeon<I_Exact, I_OutAligned>(from, size, to); }
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Log(const double* from, size_t size, double* to) { LogNeon<I_Exact, I_OutAligned>(from, size, to); }
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Sigmoid(const float* from, size_t size, float* to) { SigmoidNeon<I_Exact, I_OutAligned>(from, size, to); }
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Sigmoid(const double* from, size_t size, double* to) { SigmoidNeon<I_Exact, I_OutAligned>(from, size, to); }
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Tanh(const float* from, size_t size, float* to) { TanhNeon<I_Exact, I_OutAligned>(from, size, to); }
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Tanh(const double* from, size_t size, double* to) { TanhNeon<I_Exact, I_OutAligned>(from, size, to); }
+
+#elif defined(__AVX2__)
+
+#include <fastops/avx2/ops_avx2.h>
 
 // When AVX2 is available at compile time (x86-64-v3+), call AVX2 directly.
 namespace NFastOps {
@@ -33,6 +63,7 @@ namespace NFastOps {
 #else
 
 // Runtime dispatch for builds below x86-64-v3.
+#include <fastops/avx2/ops_avx2.h>
 #include <fastops/avx/ops_avx.h>
 #include <fastops/plain/ops_plain.h>
 #include <fastops/core/avx_id.h>
