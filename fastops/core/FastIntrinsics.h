@@ -164,6 +164,7 @@ namespace NFastOps {
             static constexpr __m256 c_1_over_ln_2 = Set1(1.442695040888963407359924681001892137426f);
             static constexpr __m256 c_neg_1_over_ln_2 = Set1(-1.442695040888963407359924681001892137426f);
             static constexpr __m256 c_neg_2_over_ln_2 = Set1(float(-2. * 1.442695040888963407359924681001892137426));
+            static constexpr __m256 c_log2_10 = Set1(3.321928094887362347870319429489390175865f);
 
             static constexpr __m256 c_ln_2 = Set1(6.931471805599453094172321214581765680755e-1f);
             static constexpr __m256i c_denorm_const = constexpr_mm256_set1_epi32(127);
@@ -243,6 +244,7 @@ namespace NFastOps {
             static constexpr __m256d c_1_over_ln_2 = Set1(1.442695040888963407359924681001892137426);
             static constexpr __m256d c_neg_1_over_ln_2 = Set1(-1.442695040888963407359924681001892137426);
             static constexpr __m256d c_neg_2_over_ln_2 = Set1(-2. * 1.442695040888963407359924681001892137426);
+            static constexpr __m256d c_log2_10 = Set1(3.321928094887362347870319429489390175865);
 
             static constexpr __m256d c_ln_2 = Set1(6.931471805599453094172321214581765680755e-1);
             static constexpr __m256i c_denorm_const = constexpr_mm256_set1_epi64x(1023);
@@ -321,6 +323,7 @@ namespace NFastOps {
             static constexpr float32x4_t c_1_over_ln_2 = Set1(1.442695040888963407359924681001892137426f);
             static constexpr float32x4_t c_neg_1_over_ln_2 = Set1(-1.442695040888963407359924681001892137426f);
             static constexpr float32x4_t c_neg_2_over_ln_2 = Set1(float(-2. * 1.442695040888963407359924681001892137426));
+            static constexpr float32x4_t c_log2_10 = Set1(3.321928094887362347870319429489390175865f);
 
             static constexpr float32x4_t c_ln_2 = Set1(6.931471805599453094172321214581765680755e-1f);
             static constexpr int32x4_t c_denorm_const = constexpr_vdupq_n_s32(127);
@@ -398,6 +401,7 @@ namespace NFastOps {
             static constexpr float64x2_t c_1_over_ln_2 = Set1(1.442695040888963407359924681001892137426);
             static constexpr float64x2_t c_neg_1_over_ln_2 = Set1(-1.442695040888963407359924681001892137426);
             static constexpr float64x2_t c_neg_2_over_ln_2 = Set1(-2. * 1.442695040888963407359924681001892137426);
+            static constexpr float64x2_t c_log2_10 = Set1(3.321928094887362347870319429489390175865);
 
             static constexpr float64x2_t c_ln_2 = Set1(6.931471805599453094172321214581765680755e-1);
             static constexpr int64x2_t c_denorm_const = constexpr_vdupq_n_s64(1023);
@@ -1372,6 +1376,36 @@ namespace NFastOps {
 #define LOC_FUNC_NAME S_Pow<I_ElementSize, I_Exact>().Calc<I_NOfElements, false>
         AVX_FLOAT_MATH_FUNC_CALL_INTR(I_ElementSize, LOC_FUNC_NAME, ymm_x, EXP_PARAMS_COMMON(c::c_1_over_ln_2), EXP_PARAMS_DOUBLE, EXP_PARAMS_FLOAT, EXP_PARAMS_APPROX);
 #undef LOC_FUNC_NAME
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    template <bool I_Exact = true, bool I_OutAligned = false, class P_Type1, class P_Type2>
+    FORCE_INLINE void AVXExp2(const P_Type1& from, size_t size, P_Type2&& to) noexcept {
+        AVX_FLOAT_EXP_LIKE_FUNC_CALL((AVXCopy<false, I_OutAligned>), S_Pow, size * c_elem_size, c::c_1_f);
+    }
+    template <bool I_Exact = true, bool I_OutAligned = false, class P_Type1, class P_Type2>
+    FORCE_INLINE void AVXExp2Move(const P_Type1& from, size_t size, P_Type2&& to) noexcept {
+        AVX_FLOAT_EXP_LIKE_FUNC_CALL((AVXMove<false, I_OutAligned>), S_Pow, size * c_elem_size, c::c_1_f);
+    }
+    template <size_t I_Size, bool I_Exact = true, bool I_OutAligned = false, class P_Type1, class P_Type2>
+    FORCE_INLINE void AVXExp2Const(const P_Type1& from, P_Type2&& to) noexcept {
+        AVX_FLOAT_EXP_LIKE_FUNC_CALL((AVXCopyConst<I_Size * c_elem_size, false, I_OutAligned>), S_Pow, c::c_1_f);
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    template <bool I_Exact = true, bool I_OutAligned = false, class P_Type1, class P_Type2>
+    FORCE_INLINE void AVXExp10(const P_Type1& from, size_t size, P_Type2&& to) noexcept {
+        AVX_FLOAT_EXP_LIKE_FUNC_CALL((AVXCopy<false, I_OutAligned>), S_Pow, size * c_elem_size, c::c_log2_10);
+    }
+    template <bool I_Exact = true, bool I_OutAligned = false, class P_Type1, class P_Type2>
+    FORCE_INLINE void AVXExp10Move(const P_Type1& from, size_t size, P_Type2&& to) noexcept {
+        AVX_FLOAT_EXP_LIKE_FUNC_CALL((AVXMove<false, I_OutAligned>), S_Pow, size * c_elem_size, c::c_log2_10);
+    }
+    template <size_t I_Size, bool I_Exact = true, bool I_OutAligned = false, class P_Type1, class P_Type2>
+    FORCE_INLINE void AVXExp10Const(const P_Type1& from, P_Type2&& to) noexcept {
+        AVX_FLOAT_EXP_LIKE_FUNC_CALL((AVXCopyConst<I_Size * c_elem_size, false, I_OutAligned>), S_Pow, c::c_log2_10);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

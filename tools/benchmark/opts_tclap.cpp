@@ -4,7 +4,7 @@
 
 TBenchmarkOpts ParseOptions(int argc, char** argv) {
     TCLAP::CmdLine cmd("fastops library benchmark: compare various implementations of a <func>");
-    TCLAP::ValueArg<std::string> funcArg("", "func", "The function to test, default is exp", false, "exp", "exp|log|sigm|tanh");
+    TCLAP::ValueArg<std::string> funcArg("", "func", "The function to test, default is exp", false, "exp", "exp|exp2|exp10|log|sigm|tanh");
     cmd.add(funcArg);
     TCLAP::ValueArg<size_t> nVectorsArg("", "vecs", "Number of vectors in the test, default 500000", false, 500000, "N");
     cmd.add(nVectorsArg);

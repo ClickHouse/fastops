@@ -1,7 +1,7 @@
 vector operations library
 =================================
 
-This small library enables acceleration of bulk calls of certain math functions using SIMD instructions. Currently supported operations are exp, log, sigmoid and tanh. The library is designed with extensibility in mind. Optimized helper functions are found in `fastops/core/FastIntrinsics.h` and you are welcome to contribute your own.
+This small library enables acceleration of bulk calls of certain math functions using SIMD instructions. Currently supported operations are exp, exp2, exp10, log, sigmoid and tanh. The library is designed with extensibility in mind. Optimized helper functions are found in `fastops/core/FastIntrinsics.h` and you are welcome to contribute your own.
 
 Supported architectures:
 * **x86 (SSE/AVX/AVX2)**: runtime CPU dispatch selects the best available instruction set. Pre-AVX fallback uses the fmath library.
@@ -78,6 +78,54 @@ void Exp(const double* from, size_t size, double* to);
   <UL> * x >= -708.39: EPS <= 3.5e-06</UL>
 4. double, exact:
   <UL> * Entire range: EPS <= 2.3e-9</UL>
+
+## Exp2
+Compute base-2 exponent function: exp2(x) = 2^x. Internally this is a direct call to the Pow2V kernel with no input scaling, so it is slightly faster than `Exp`.
+```
+template <bool I_Exact=false, bool I_OutAligned=false>
+void Exp2(const float* from, size_t size, float* to);
+
+template <bool I_Exact=false, bool I_OutAligned=false>
+void Exp2(const double* from, size_t size, double* to);
+```
+
+### Accuracy by version
+Same polynomial evaluation as `Exp`, so accuracy characteristics are identical — only the input saturation boundaries differ.
+1. float, inexact:
+  <UL> * x < -125: accuracy degrades sharply due to saturation of the single precision range.</UL>
+  <UL> * x >= -125: EPS <= 7.21e-06</UL>
+2. float, exact:
+  <UL> * x < -126: corner cases near denormals, same as `Exp`.</UL>
+  <UL> * x >= -126: EPS <= 4e-06</UL>
+3. double, inexact
+  <UL> * x < -1020: accuracy degrades sharply.</UL>
+  <UL> * x >= -1020: EPS <= 3.5e-06</UL>
+4. double, exact:
+  <UL> * Entire range: EPS <= 2.3e-9</UL>
+
+## Exp10
+Compute base-10 exponent function: exp10(x) = 10^x. Internally this is Pow2V(x * log2(10)), sharing the same kernel as `Exp`.
+```
+template <bool I_Exact=false, bool I_OutAligned=false>
+void Exp10(const float* from, size_t size, float* to);
+
+template <bool I_Exact=false, bool I_OutAligned=false>
+void Exp10(const double* from, size_t size, double* to);
+```
+
+### Accuracy by version
+Same polynomial evaluation as `Exp`, but the extra multiply by log2(10) adds a small additional error.
+1. float, inexact:
+  <UL> * x < -37.5: accuracy degrades sharply due to saturation of the single precision range.</UL>
+  <UL> * x >= -37.5: EPS <= 8e-06</UL>
+2. float, exact:
+  <UL> * x < -38: corner cases near denormals, same as `Exp`.</UL>
+  <UL> * x >= -38: EPS <= 5e-06</UL>
+3. double, inexact
+  <UL> * x < -307: accuracy degrades sharply.</UL>
+  <UL> * x >= -307: EPS <= 4e-06</UL>
+4. double, exact:
+  <UL> * Entire range: EPS <= 3e-9</UL>
 
 ## Log
 Computes natural log function.

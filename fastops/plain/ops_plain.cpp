@@ -58,4 +58,28 @@ namespace NFastOps {
             to[i] = 2 / (1.0 + fmath::expd(-2 * from[i])) - 1;
         }
     }
+
+    void Exp2Plain(const float* from, size_t size, float* to) {
+        for (size_t i = 0; i < size; ++i) {
+            to[i] = fmath::expd(from[i] * 0.6931471805599453094172321214581765680755);
+        }
+    }
+
+    void Exp2Plain(const double* from, size_t size, double* to) {
+        for (size_t i = 0; i < size; ++i) {
+            to[i] = fmath::expd(from[i] * 0.6931471805599453094172321214581765680755);
+        }
+    }
+
+    void Exp10Plain(const float* from, size_t size, float* to) {
+        for (size_t i = 0; i < size; ++i) {
+            to[i] = fmath::expd(from[i] * 2.302585092994045684017991454684364207601);
+        }
+    }
+
+    void Exp10Plain(const double* from, size_t size, double* to) {
+        for (size_t i = 0; i < size; ++i) {
+            to[i] = fmath::expd(from[i] * 2.302585092994045684017991454684364207601);
+        }
+    }
 }

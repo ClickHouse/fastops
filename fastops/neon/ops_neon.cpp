@@ -82,4 +82,44 @@ namespace NFastOps {
     template void TanhNeon<false, true>(const double* from, size_t size, double* to);
     template void TanhNeon<true, false>(const double* from, size_t size, double* to);
     template void TanhNeon<true, true>(const double* from, size_t size, double* to);
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Exp2Neon(const float* from, size_t size, float* to) {
+        NFastOps::AVXExp2<I_Exact, I_OutAligned>(from, size, to);
+    }
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Exp2Neon(const double* from, size_t size, double* to) {
+        NFastOps::AVXExp2<I_Exact, I_OutAligned>(from, size, to);
+    }
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Exp10Neon(const float* from, size_t size, float* to) {
+        NFastOps::AVXExp10<I_Exact, I_OutAligned>(from, size, to);
+    }
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Exp10Neon(const double* from, size_t size, double* to) {
+        NFastOps::AVXExp10<I_Exact, I_OutAligned>(from, size, to);
+    }
+
+    template void Exp2Neon<false, false>(const float* from, size_t size, float* to);
+    template void Exp2Neon<false, true>(const float* from, size_t size, float* to);
+    template void Exp2Neon<true, false>(const float* from, size_t size, float* to);
+    template void Exp2Neon<true, true>(const float* from, size_t size, float* to);
+
+    template void Exp2Neon<false, false>(const double* from, size_t size, double* to);
+    template void Exp2Neon<false, true>(const double* from, size_t size, double* to);
+    template void Exp2Neon<true, false>(const double* from, size_t size, double* to);
+    template void Exp2Neon<true, true>(const double* from, size_t size, double* to);
+
+    template void Exp10Neon<false, false>(const float* from, size_t size, float* to);
+    template void Exp10Neon<false, true>(const float* from, size_t size, float* to);
+    template void Exp10Neon<true, false>(const float* from, size_t size, float* to);
+    template void Exp10Neon<true, true>(const float* from, size_t size, float* to);
+
+    template void Exp10Neon<false, false>(const double* from, size_t size, double* to);
+    template void Exp10Neon<false, true>(const double* from, size_t size, double* to);
+    template void Exp10Neon<true, false>(const double* from, size_t size, double* to);
+    template void Exp10Neon<true, true>(const double* from, size_t size, double* to);
 }

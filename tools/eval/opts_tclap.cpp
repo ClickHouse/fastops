@@ -4,7 +4,7 @@
 
 TEvalOpts ParseOptions(int argc, char** argv) {
     TCLAP::CmdLine cmd("Compute <count> values of a <func> in [<min>, <max>] interval");
-    TCLAP::ValueArg<std::string> funcArg("", "func", "exp or log or sigm or tanh", true, "exp", "exp|log|sigm|tanh");
+    TCLAP::ValueArg<std::string> funcArg("", "func", "exp or exp2 or exp10 or log or sigm or tanh", true, "exp", "exp|exp2|exp10|log|sigm|tanh");
     cmd.add(funcArg);
     TCLAP::ValueArg<float> minArg("", "min", "Lower boundary of an interval, default is -100.0", false, -100.0, "FLOAT");
     cmd.add(minArg);

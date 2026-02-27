@@ -26,4 +26,16 @@ namespace NFastOps {
 
     template <bool I_Exact = false, bool I_OutAligned = false>
     void Tanh(const double* from, size_t size, double* to);
+
+    template <bool I_Exact = false, bool I_OutAligned = false>
+    void Exp2(const float* from, size_t size, float* to);
+
+    template <bool I_Exact = false, bool I_OutAligned = false>
+    void Exp2(const double* from, size_t size, double* to);
+
+    template <bool I_Exact = false, bool I_OutAligned = false>
+    void Exp10(const float* from, size_t size, float* to);
+
+    template <bool I_Exact = false, bool I_OutAligned = false>
+    void Exp10(const double* from, size_t size, double* to);
 }

@@ -77,6 +77,86 @@ struct TDispatchedAvx2Exp {
 };
 
 template <bool Exact>
+struct TAvxExp2 {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp2Avx<Exact, false>(from, size, to);
+    }
+};
+
+template <bool Exact>
+struct TAvx2Exp2 {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp2Avx2<Exact, false>(from, size, to);
+    }
+};
+
+struct TPlainExp2 {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp2Plain(from, size, to);
+    }
+};
+
+struct TSlowExp2 {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        for (size_t i = 0; i < size; ++i) {
+            to[i] = exp2(from[i]);
+        }
+    }
+};
+
+template <bool Exact>
+struct TDispatchedAvx2Exp2 {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp2<Exact>(from, size, to);
+    }
+};
+
+template <bool Exact>
+struct TAvxExp10 {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp10Avx<Exact, false>(from, size, to);
+    }
+};
+
+template <bool Exact>
+struct TAvx2Exp10 {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp10Avx2<Exact, false>(from, size, to);
+    }
+};
+
+struct TPlainExp10 {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp10Plain(from, size, to);
+    }
+};
+
+struct TSlowExp10 {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        for (size_t i = 0; i < size; ++i) {
+            to[i] = pow((T)10, from[i]);
+        }
+    }
+};
+
+template <bool Exact>
+struct TDispatchedAvx2Exp10 {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp10<Exact>(from, size, to);
+    }
+};
+
+template <bool Exact>
 struct TAvxLog {
     template <class T>
     static void Apply(const T* from, size_t size, T* to) {
@@ -237,11 +317,13 @@ void RunBenchmark(const TBenchmarkOpts& opts) {
     size_t alignment = opts.Alignment;
 
     bool isExp = func == "exp";
+    bool isExp2 = func == "exp2";
+    bool isExp10 = func == "exp10";
     bool isLog = func == "log";
     bool isSigm = func == "sigm";
     bool isTanh = func == "tanh";
-    if (!(isExp || isLog || isSigm || isTanh)) {
-        std::cerr << "requirement isExp || isLog || isSigm || isTanh failed" << std::endl;
+    if (!(isExp || isExp2 || isExp10 || isLog || isSigm || isTanh)) {
+        std::cerr << "requirement isExp || isExp2 || isExp10 || isLog || isSigm || isTanh failed" << std::endl;
         exit(1);
     }
 
@@ -285,6 +367,8 @@ void RunBenchmark(const TBenchmarkOpts& opts) {
                 val = exp(val);
             } else if (isTanh || isSigm) {
                 val /= 10;
+            } else if (isExp10) {
+                val /= 5;  // keep in [-10, 10] range
             }
         }
     }
@@ -307,6 +391,28 @@ void RunBenchmark(const TBenchmarkOpts& opts) {
         if (NFastOps::HaveAvx2()) {
             BenchmarkFunc<TAvx2Exp<false>>(inVectors, outVectors, vecSize, nIter, "avx2 fast exp");
             BenchmarkFunc<TAvx2Exp<true>>(inVectors, outVectors, vecSize, nIter, "avx2 fast exact exp");
+        }
+    } else if (isExp2) {
+        BenchmarkFunc<TSlowExp2>(inVectors, outVectors, vecSize, 1, "slow exp2");
+        BenchmarkFunc<TPlainExp2>(inVectors, outVectors, vecSize, int(round(nIter / 2.0)), "plain fast exp2");
+        BenchmarkFunc<TAvxExp2<false>>(inVectors, outVectors, vecSize, nIter, "avx fast exp2");
+        BenchmarkFunc<TAvxExp2<true>>(inVectors, outVectors, vecSize, nIter, "avx fast exact exp2");
+        BenchmarkFunc<TDispatchedAvx2Exp2<false>>(
+            inVectors, outVectors, vecSize, nIter, "dispatched fast exp2");
+        if (NFastOps::HaveAvx2()) {
+            BenchmarkFunc<TAvx2Exp2<false>>(inVectors, outVectors, vecSize, nIter, "avx2 fast exp2");
+            BenchmarkFunc<TAvx2Exp2<true>>(inVectors, outVectors, vecSize, nIter, "avx2 fast exact exp2");
+        }
+    } else if (isExp10) {
+        BenchmarkFunc<TSlowExp10>(inVectors, outVectors, vecSize, 1, "slow exp10");
+        BenchmarkFunc<TPlainExp10>(inVectors, outVectors, vecSize, int(round(nIter / 2.0)), "plain fast exp10");
+        BenchmarkFunc<TAvxExp10<false>>(inVectors, outVectors, vecSize, nIter, "avx fast exp10");
+        BenchmarkFunc<TAvxExp10<true>>(inVectors, outVectors, vecSize, nIter, "avx fast exact exp10");
+        BenchmarkFunc<TDispatchedAvx2Exp10<false>>(
+            inVectors, outVectors, vecSize, nIter, "dispatched fast exp10");
+        if (NFastOps::HaveAvx2()) {
+            BenchmarkFunc<TAvx2Exp10<false>>(inVectors, outVectors, vecSize, nIter, "avx2 fast exp10");
+            BenchmarkFunc<TAvx2Exp10<true>>(inVectors, outVectors, vecSize, nIter, "avx2 fast exact exp10");
         }
     } else if (isLog) {
         // too slow, just one iteration
