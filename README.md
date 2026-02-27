@@ -1,9 +1,13 @@
 vector operations library
 =================================
 
-This small library enables acceleration of bulk calls of certain math functions on AVX and AVX2 hardware. Currently supported operations are exp, log, sigmoid and tanh. The library is designed with extensibility in mind. Optimized helper functions are found in `fastops/core/FastIntrinsics.h` and you are welcome to contribute your own.
+This small library enables acceleration of bulk calls of certain math functions using SIMD instructions. Currently supported operations are exp, log, sigmoid and tanh. The library is designed with extensibility in mind. Optimized helper functions are found in `fastops/core/FastIntrinsics.h` and you are welcome to contribute your own.
 
-The library itself implements operations using AVX and AVX2, but will work on any hardware with at least SSE2 support. `fastops/fastops.h` header provides interface for best versions of functions via runtime CPU dispatch. Pre-AVX implementation uses fmath library, which works reasonably well with SSE. All functions are approximate, yet quite precise. Accuracy of each operation is detailed below along with operation description. All implementation architectures (SSE, AVX or AVX2) share same accuracy while increasing performance.
+Supported architectures:
+* **x86 (SSE/AVX/AVX2)**: runtime CPU dispatch selects the best available instruction set. Pre-AVX fallback uses the fmath library.
+* **AArch64 (NEON)**: 128-bit NEON SIMD with native FMA. Always enabled on AArch64 — no runtime dispatch needed.
+
+`fastops/fastops.h` header provides the interface for the best version of each function. All functions are approximate, yet quite precise. Accuracy of each operation is detailed below along with operation description. All implementation architectures share the same polynomial coefficients and evaluation scheme, so accuracy is consistent across platforms.
 
 Core implementation (`fastops/core/FastIntrinsics.h`) contains versions for fixed-size arrays that produce completely unrolled code for uncompromized performance. These may slowdown compilation and thus are currently not exposed via high-level dispatched interfaces. Be careful when using these versions: long fixed-size arrays may lead to etxreme code bloat. The regular versions perform on par with these ones if your arrays are larger than 512 bytes. 
 
@@ -28,22 +32,25 @@ Two tools are provided along the library:
 * tools/benchmark - compares performance of AVX/AVX2 optimized versions with baseline fmath implementation.
 Use `--help` for set of supported options.
 
-Please note that running these tools on pre-AVX harware makes little sense.
+On x86, please note that running these tools on pre-AVX hardware makes little sense.
 * tools/benchmark will refuse to run on it and won't call AVX2 functions on pure AVX hardware.
-* tools/eval allows selecting instruction set via command line and does not perform any checks. 
+* tools/eval allows selecting instruction set via command line and does not perform any checks.
   It will just crash if ran on incompatible hardware.
+
+On AArch64, both tools use the NEON implementation directly.
 
 Functions
 =================================
 The dispathed interfaces are available via `fastops/fastops.h` header file. There are single and
 double precision versions for each operation. Template parameters include speed/accuracy and alignment controls.
 * Speed/accuracy is bool letting you choose faster or more precise version of algorithm.
-* Alignment control allows to select whether output array is 32byte-aligned or not.
-  The common belief is that unaligned versions may perform slower, but special studies 
-  for our functions were not performed. Choose this parameter according to your array alignment:
-  the aligned AVX operations on unaligned data may crash.
+* Alignment control allows to select whether the output array is aligned or not
+  (32-byte on x86 AVX, 16-byte on AArch64 NEON). The common belief is that unaligned
+  versions may perform slower, but special studies for our functions were not performed.
+  Choose this parameter according to your array alignment: aligned SIMD operations on
+  unaligned data may crash.
 
-All the library functionality is directly available via `fastops/core/FastIntrinsics.h` header, but then you should care about hardware compatibility yourself. Tiny AVX and AVX2 hardware detection utility is available via `fastops/core/avx_id.h`.
+All the library functionality is directly available via `fastops/core/FastIntrinsics.h` header, but then you should care about hardware compatibility yourself. On x86, a tiny AVX and AVX2 hardware detection utility is available via `fastops/core/avx_id.h`. On AArch64, NEON is always present so no detection is needed.
 
 Below we use the following terms:
 <UL> * x - input value </UL>
