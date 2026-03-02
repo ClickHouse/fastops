@@ -1,9 +1,10 @@
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
     add_subdirectory(neon)
+    add_subdirectory(sve)
     add_subdirectory(plain)
 
     add_library(fastops fastops.cpp)
-    target_link_libraries(fastops neon plain)
+    target_link_libraries(fastops neon sve plain)
 else()
     add_subdirectory(avx)
     add_subdirectory(avx2)

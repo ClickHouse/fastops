@@ -3,6 +3,7 @@
 #include <fastops/fastops.h>
 #if defined(__aarch64__) || defined(__arm__)
 #include <fastops/neon/ops_neon.h>
+#include <fastops/sve/ops_sve.h>
 #else
 #include <fastops/avx/ops_avx.h>
 #include <fastops/avx2/ops_avx2.h>
@@ -561,6 +562,54 @@ struct TSlowTanh {
         for (size_t i = 0; i < size; ++i) to[i] = tanh(from[i]);
     }
 };
+template <bool Exact>
+struct TSveExp {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::ExpSve<Exact, false>(from, size, to);
+    }
+};
+
+template <bool Exact>
+struct TSveExp2 {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp2Sve<Exact, false>(from, size, to);
+    }
+};
+
+template <bool Exact>
+struct TSveExp10 {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp10Sve<Exact, false>(from, size, to);
+    }
+};
+
+template <bool Exact>
+struct TSveLog {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::LogSve<Exact, false>(from, size, to);
+    }
+};
+
+template <bool Exact>
+struct TSveSigm {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::SigmoidSve<Exact, false>(from, size, to);
+    }
+};
+
+template <bool Exact>
+struct TSveTanh {
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::TanhSve<Exact, false>(from, size, to);
+    }
+};
+
 struct TPlainExp {
     template <class T>
     static void Apply(const T* from, size_t size, T* to) { NFastOps::ExpPlain(from, size, to); }
@@ -633,37 +682,63 @@ void RunBenchmark(const TBenchmarkOpts& opts) {
         }
     }
 
+    bool haveSve = NFastOps::HaveSve();
+
     std::cerr << "Running" << std::endl;
     if (isExp) {
         BenchmarkFunc<TSlowExp>(inVectors, outVectors, vecSize, 1, "libc exp (reference)");
         BenchmarkFunc<TPlainExp>(inVectors, outVectors, vecSize, int(round(nIter / 2.0)), "plain fast exp");
         BenchmarkFunc<TNeonExp<false>>(inVectors, outVectors, vecSize, nIter, "neon inexact exp");
         BenchmarkFunc<TNeonExp<true>>(inVectors, outVectors, vecSize, nIter, "neon exact exp");
+        if (haveSve) {
+            BenchmarkFunc<TSveExp<false>>(inVectors, outVectors, vecSize, nIter, "sve inexact exp");
+            BenchmarkFunc<TSveExp<true>>(inVectors, outVectors, vecSize, nIter, "sve exact exp");
+        }
     } else if (isExp2) {
         BenchmarkFunc<TSlowExp2>(inVectors, outVectors, vecSize, 1, "libc exp2 (reference)");
         BenchmarkFunc<TPlainExp2>(inVectors, outVectors, vecSize, int(round(nIter / 2.0)), "plain fast exp2");
         BenchmarkFunc<TNeonExp2<false>>(inVectors, outVectors, vecSize, nIter, "neon inexact exp2");
         BenchmarkFunc<TNeonExp2<true>>(inVectors, outVectors, vecSize, nIter, "neon exact exp2");
+        if (haveSve) {
+            BenchmarkFunc<TSveExp2<false>>(inVectors, outVectors, vecSize, nIter, "sve inexact exp2");
+            BenchmarkFunc<TSveExp2<true>>(inVectors, outVectors, vecSize, nIter, "sve exact exp2");
+        }
     } else if (isExp10) {
         BenchmarkFunc<TSlowExp10>(inVectors, outVectors, vecSize, 1, "libc exp10 (reference)");
         BenchmarkFunc<TPlainExp10>(inVectors, outVectors, vecSize, int(round(nIter / 2.0)), "plain fast exp10");
         BenchmarkFunc<TNeonExp10<false>>(inVectors, outVectors, vecSize, nIter, "neon inexact exp10");
         BenchmarkFunc<TNeonExp10<true>>(inVectors, outVectors, vecSize, nIter, "neon exact exp10");
+        if (haveSve) {
+            BenchmarkFunc<TSveExp10<false>>(inVectors, outVectors, vecSize, nIter, "sve inexact exp10");
+            BenchmarkFunc<TSveExp10<true>>(inVectors, outVectors, vecSize, nIter, "sve exact exp10");
+        }
     } else if (isLog) {
         BenchmarkFunc<TSlowLog>(inVectors, outVectors, vecSize, 1, "libc log (reference)");
         BenchmarkFunc<TPlainLog>(inVectors, outVectors, vecSize, int(round(nIter / 2.0)), "plain fast log");
         BenchmarkFunc<TNeonLog<false>>(inVectors, outVectors, vecSize, nIter, "neon inexact log");
         BenchmarkFunc<TNeonLog<true>>(inVectors, outVectors, vecSize, nIter, "neon exact log");
+        if (haveSve) {
+            BenchmarkFunc<TSveLog<false>>(inVectors, outVectors, vecSize, nIter, "sve inexact log");
+            BenchmarkFunc<TSveLog<true>>(inVectors, outVectors, vecSize, nIter, "sve exact log");
+        }
     } else if (isSigm) {
         BenchmarkFunc<TSlowSigm>(inVectors, outVectors, vecSize, 1, "libc sigmoid (reference)");
         BenchmarkFunc<TPlainSigm>(inVectors, outVectors, vecSize, int(round(nIter / 2.0)), "plain fast sigmoid");
         BenchmarkFunc<TNeonSigm<false>>(inVectors, outVectors, vecSize, nIter, "neon inexact sigmoid");
         BenchmarkFunc<TNeonSigm<true>>(inVectors, outVectors, vecSize, nIter, "neon exact sigmoid");
+        if (haveSve) {
+            BenchmarkFunc<TSveSigm<false>>(inVectors, outVectors, vecSize, nIter, "sve inexact sigmoid");
+            BenchmarkFunc<TSveSigm<true>>(inVectors, outVectors, vecSize, nIter, "sve exact sigmoid");
+        }
     } else if (isTanh) {
         BenchmarkFunc<TSlowTanh>(inVectors, outVectors, vecSize, 1, "libc tanh (reference)");
         BenchmarkFunc<TPlainTanh>(inVectors, outVectors, vecSize, int(round(nIter / 2.0)), "plain fast tanh");
         BenchmarkFunc<TNeonTanh<false>>(inVectors, outVectors, vecSize, nIter, "neon inexact tanh");
         BenchmarkFunc<TNeonTanh<true>>(inVectors, outVectors, vecSize, nIter, "neon exact tanh");
+        if (haveSve) {
+            BenchmarkFunc<TSveTanh<false>>(inVectors, outVectors, vecSize, nIter, "sve inexact tanh");
+            BenchmarkFunc<TSveTanh<true>>(inVectors, outVectors, vecSize, nIter, "sve exact tanh");
+        }
     }
 }
 

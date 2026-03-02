@@ -3,44 +3,84 @@
 #if defined(__aarch64__) || defined(_M_ARM64)
 
 #include <fastops/neon/ops_neon.h>
+#include <fastops/sve/ops_sve.h>
 
-// AArch64: always use NEON.
+// AArch64: dispatch to SVE when available (any vector width), otherwise NEON.
+// SVE benefits even at 128-bit width: predicated tail handling eliminates the
+// complex AVXCopy remainder logic, and the VLA loop is simpler codegen overall.
 namespace NFastOps {
-    template <bool I_Exact, bool I_OutAligned>
-    void Exp(const float* from, size_t size, float* to) { ExpNeon<I_Exact, I_OutAligned>(from, size, to); }
 
     template <bool I_Exact, bool I_OutAligned>
-    void Exp(const double* from, size_t size, double* to) { ExpNeon<I_Exact, I_OutAligned>(from, size, to); }
+    void Exp(const float* from, size_t size, float* to) {
+        if (HaveSve()) ExpSve<I_Exact, I_OutAligned>(from, size, to);
+        else ExpNeon<I_Exact, I_OutAligned>(from, size, to);
+    }
 
     template <bool I_Exact, bool I_OutAligned>
-    void Log(const float* from, size_t size, float* to) { LogNeon<I_Exact, I_OutAligned>(from, size, to); }
+    void Exp(const double* from, size_t size, double* to) {
+        if (HaveSve()) ExpSve<I_Exact, I_OutAligned>(from, size, to);
+        else ExpNeon<I_Exact, I_OutAligned>(from, size, to);
+    }
 
     template <bool I_Exact, bool I_OutAligned>
-    void Log(const double* from, size_t size, double* to) { LogNeon<I_Exact, I_OutAligned>(from, size, to); }
+    void Log(const float* from, size_t size, float* to) {
+        if (HaveSve()) LogSve<I_Exact, I_OutAligned>(from, size, to);
+        else LogNeon<I_Exact, I_OutAligned>(from, size, to);
+    }
 
     template <bool I_Exact, bool I_OutAligned>
-    void Sigmoid(const float* from, size_t size, float* to) { SigmoidNeon<I_Exact, I_OutAligned>(from, size, to); }
+    void Log(const double* from, size_t size, double* to) {
+        if (HaveSve()) LogSve<I_Exact, I_OutAligned>(from, size, to);
+        else LogNeon<I_Exact, I_OutAligned>(from, size, to);
+    }
 
     template <bool I_Exact, bool I_OutAligned>
-    void Sigmoid(const double* from, size_t size, double* to) { SigmoidNeon<I_Exact, I_OutAligned>(from, size, to); }
+    void Sigmoid(const float* from, size_t size, float* to) {
+        if (HaveSve()) SigmoidSve<I_Exact, I_OutAligned>(from, size, to);
+        else SigmoidNeon<I_Exact, I_OutAligned>(from, size, to);
+    }
 
     template <bool I_Exact, bool I_OutAligned>
-    void Tanh(const float* from, size_t size, float* to) { TanhNeon<I_Exact, I_OutAligned>(from, size, to); }
+    void Sigmoid(const double* from, size_t size, double* to) {
+        if (HaveSve()) SigmoidSve<I_Exact, I_OutAligned>(from, size, to);
+        else SigmoidNeon<I_Exact, I_OutAligned>(from, size, to);
+    }
 
     template <bool I_Exact, bool I_OutAligned>
-    void Tanh(const double* from, size_t size, double* to) { TanhNeon<I_Exact, I_OutAligned>(from, size, to); }
+    void Tanh(const float* from, size_t size, float* to) {
+        if (HaveSve()) TanhSve<I_Exact, I_OutAligned>(from, size, to);
+        else TanhNeon<I_Exact, I_OutAligned>(from, size, to);
+    }
 
     template <bool I_Exact, bool I_OutAligned>
-    void Exp2(const float* from, size_t size, float* to) { Exp2Neon<I_Exact, I_OutAligned>(from, size, to); }
+    void Tanh(const double* from, size_t size, double* to) {
+        if (HaveSve()) TanhSve<I_Exact, I_OutAligned>(from, size, to);
+        else TanhNeon<I_Exact, I_OutAligned>(from, size, to);
+    }
 
     template <bool I_Exact, bool I_OutAligned>
-    void Exp2(const double* from, size_t size, double* to) { Exp2Neon<I_Exact, I_OutAligned>(from, size, to); }
+    void Exp2(const float* from, size_t size, float* to) {
+        if (HaveSve()) Exp2Sve<I_Exact, I_OutAligned>(from, size, to);
+        else Exp2Neon<I_Exact, I_OutAligned>(from, size, to);
+    }
 
     template <bool I_Exact, bool I_OutAligned>
-    void Exp10(const float* from, size_t size, float* to) { Exp10Neon<I_Exact, I_OutAligned>(from, size, to); }
+    void Exp2(const double* from, size_t size, double* to) {
+        if (HaveSve()) Exp2Sve<I_Exact, I_OutAligned>(from, size, to);
+        else Exp2Neon<I_Exact, I_OutAligned>(from, size, to);
+    }
 
     template <bool I_Exact, bool I_OutAligned>
-    void Exp10(const double* from, size_t size, double* to) { Exp10Neon<I_Exact, I_OutAligned>(from, size, to); }
+    void Exp10(const float* from, size_t size, float* to) {
+        if (HaveSve()) Exp10Sve<I_Exact, I_OutAligned>(from, size, to);
+        else Exp10Neon<I_Exact, I_OutAligned>(from, size, to);
+    }
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Exp10(const double* from, size_t size, double* to) {
+        if (HaveSve()) Exp10Sve<I_Exact, I_OutAligned>(from, size, to);
+        else Exp10Neon<I_Exact, I_OutAligned>(from, size, to);
+    }
 
 #elif defined(__AVX2__)
 

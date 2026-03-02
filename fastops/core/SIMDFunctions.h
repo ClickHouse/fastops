@@ -1764,6 +1764,222 @@ namespace NFastOps {
     // Emulated 256-bit width: 32 bytes
     template <size_t I_ElemSize>
     using S_MaxSIMD = S_SIMDV<32 / I_ElemSize, I_ElemSize>;
+
+    //############################################################################################################################################################
+    // SVE specializations: N=0 is a VLA tag (no existing specialization uses N=0).
+    // Only available when compiled with -march=armv8-a+sve (or similar).
+    //############################################################################################################################################################
+#ifdef __ARM_FEATURE_SVE
+#include <arm_sve.h>
+
+    // S_SIMDV<0,4>: SVE vector-length-agnostic float32
+    template <>
+    struct S_SIMDV<0, 4> {
+        using t_f = svfloat32_t;
+        using t_i = svint32_t;
+        using t_base_type = float;
+
+        // Cast from NEON constant (all lanes identical) to SVE broadcast
+        FORCE_INLINE static t_f Cast(float32x4_t v) noexcept { return svdup_n_f32(vgetq_lane_f32(v, 0)); }
+        FORCE_INLINE static t_i Cast(int32x4_t v) noexcept { return svdup_n_s32(vgetq_lane_s32(v, 0)); }
+        FORCE_INLINE static t_f Cast(t_f v) noexcept { return v; }
+        FORCE_INLINE static t_i Cast(t_i v) noexcept { return v; }
+
+        FORCE_INLINE static t_i SetZeroI() { return svdup_n_s32(0); }
+        FORCE_INLINE static t_f SetZeroF() { return svdup_n_f32(0); }
+        FORCE_INLINE static t_f Set1(float v) { return svdup_n_f32(v); }
+        FORCE_INLINE static t_i Set1(int v) { return svdup_n_s32(v); }
+
+        FORCE_INLINE static t_i CastI(t_f v) { return svreinterpret_s32_f32(v); }
+        FORCE_INLINE static t_f CastF(t_i v) { return svreinterpret_f32_s32(v); }
+        FORCE_INLINE static t_f CVTI2F(t_i v) { return svcvt_f32_s32_x(svptrue_b32(), v); }
+        FORCE_INLINE static t_i CVTF2I(t_f v) { return svcvt_s32_f32_x(svptrue_b32(), v); }
+
+        FORCE_INLINE static t_i CmpEqI(t_i v1, t_i v2) {
+            svbool_t pred = svcmpeq_s32(svptrue_b32(), v1, v2);
+            return svsel_s32(pred, svdup_n_s32(-1), svdup_n_s32(0));
+        }
+        FORCE_INLINE static t_i SRLI(t_i v, int i) {
+            return svreinterpret_s32_u32(svlsr_u32_x(svptrue_b32(), svreinterpret_u32_s32(v), svdup_n_u32((uint32_t)i)));
+        }
+        FORCE_INLINE static t_i SLLI(t_i v, int i) {
+            return svlsl_s32_x(svptrue_b32(), v, svdup_n_u32((uint32_t)i));
+        }
+        FORCE_INLINE static t_i SRAI32(t_i v, int i) {
+            return svasr_s32_x(svptrue_b32(), v, svdup_n_u32((uint32_t)i));
+        }
+
+        FORCE_INLINE static int TestCF(t_f v1, t_f v2) {
+            svuint32_t bits = svbic_u32_x(svptrue_b32(), svreinterpret_u32_f32(v2), svreinterpret_u32_f32(v1));
+            return !svptest_any(svptrue_b32(), svcmpne_n_u32(svptrue_b32(), bits, 0));
+        }
+        FORCE_INLINE static int TestZF(t_f v1, t_f v2) {
+            svuint32_t bits = svand_u32_x(svptrue_b32(), svreinterpret_u32_f32(v1), svreinterpret_u32_f32(v2));
+            return !svptest_any(svptrue_b32(), svcmpne_n_u32(svptrue_b32(), bits, 0));
+        }
+
+        FORCE_INLINE static t_f AndF(t_f v1, t_f v2) {
+            return svreinterpret_f32_u32(svand_u32_x(svptrue_b32(), svreinterpret_u32_f32(v1), svreinterpret_u32_f32(v2)));
+        }
+        FORCE_INLINE static t_f AndNotF(t_f v1, t_f v2) {
+            return svreinterpret_f32_u32(svbic_u32_x(svptrue_b32(), svreinterpret_u32_f32(v2), svreinterpret_u32_f32(v1)));
+        }
+        FORCE_INLINE static t_f OrF(t_f v1, t_f v2) {
+            return svreinterpret_f32_u32(svorr_u32_x(svptrue_b32(), svreinterpret_u32_f32(v1), svreinterpret_u32_f32(v2)));
+        }
+        FORCE_INLINE static t_f XorF(t_f v1, t_f v2) {
+            return svreinterpret_f32_u32(sveor_u32_x(svptrue_b32(), svreinterpret_u32_f32(v1), svreinterpret_u32_f32(v2)));
+        }
+
+        FORCE_INLINE static t_i Sub(t_i v1, t_i v2) { return svsub_s32_x(svptrue_b32(), v1, v2); }
+        FORCE_INLINE static t_i Add(t_i v1, t_i v2) { return svadd_s32_x(svptrue_b32(), v1, v2); }
+
+        FORCE_INLINE static t_f BlendVF(t_f v1, t_f v2, t_f v3) {
+            svbool_t mask = svcmplt_s32(svptrue_b32(), svreinterpret_s32_f32(v3), svdup_n_s32(0));
+            return svsel_f32(mask, v2, v1);
+        }
+
+        template <int I_Mode>
+        FORCE_INLINE static t_f CmpFM(t_f v1, t_f v2) {
+            if constexpr (I_Mode == _CMP_EQ_OQ) {
+                svbool_t pred = svcmpeq_f32(svptrue_b32(), v1, v2);
+                return svreinterpret_f32_u32(svsel_u32(pred, svdup_n_u32(~(uint32_t)0), svdup_n_u32(0)));
+            } else {
+                svbool_t pred = svcmpgt_f32(svptrue_b32(), v1, v2);
+                return svreinterpret_f32_u32(svsel_u32(pred, svdup_n_u32(~(uint32_t)0), svdup_n_u32(0)));
+            }
+        }
+        template <int I_Mode>
+        FORCE_INLINE static t_f CmpF(t_f v1, t_f v2) { return CmpFM<I_Mode>(v1, v2); }
+        FORCE_INLINE static t_f CmpEqF(t_f v1, t_f v2) { return CmpFM<_CMP_EQ_OQ>(v1, v2); }
+
+        FORCE_INLINE static t_f Mul(t_f v1, t_f v2) { return svmul_f32_x(svptrue_b32(), v1, v2); }
+        FORCE_INLINE static t_f Div(t_f v1, t_f v2) { return svdiv_f32_x(svptrue_b32(), v1, v2); }
+        FORCE_INLINE static t_f Add(t_f v1, t_f v2) { return svadd_f32_x(svptrue_b32(), v1, v2); }
+        FORCE_INLINE static t_f Sub(t_f v1, t_f v2) { return svsub_f32_x(svptrue_b32(), v1, v2); }
+        FORCE_INLINE static t_f Sqrt(t_f v) { return svsqrt_f32_x(svptrue_b32(), v); }
+
+        FORCE_INLINE static t_f FMADD(t_f v1, t_f v2, t_f v3) { return svmla_f32_x(svptrue_b32(), v3, v1, v2); }
+        FORCE_INLINE static t_f FMSUB(t_f v1, t_f v2, t_f v3) { return svmla_f32_x(svptrue_b32(), svneg_f32_x(svptrue_b32(), v3), v1, v2); }
+        FORCE_INLINE static t_f FNMADD(t_f v1, t_f v2, t_f v3) { return svmls_f32_x(svptrue_b32(), v3, v1, v2); }
+
+        FORCE_INLINE static t_f Min(t_f v1, t_f v2) { return svmin_f32_x(svptrue_b32(), v1, v2); }
+        FORCE_INLINE static t_f Max(t_f v1, t_f v2) { return svmax_f32_x(svptrue_b32(), v1, v2); }
+        FORCE_INLINE static t_f Floor(t_f v) { return svrintm_f32_x(svptrue_b32(), v); }
+
+        FORCE_INLINE static t_f LoadU(const float* p) { return svld1_f32(svptrue_b32(), p); }
+        FORCE_INLINE static t_f Load(const float* p) { return svld1_f32(svptrue_b32(), p); }
+        FORCE_INLINE static void StoreU(float* p, t_f v) { svst1_f32(svptrue_b32(), p, v); }
+        FORCE_INLINE static void Store(float* p, t_f v) { svst1_f32(svptrue_b32(), p, v); }
+    };
+
+    // S_SIMDV<0,8>: SVE vector-length-agnostic float64
+    template <>
+    struct S_SIMDV<0, 8> {
+        using t_f = svfloat64_t;
+        using t_i = svint64_t;
+        using t_base_type = double;
+
+        FORCE_INLINE static t_f Cast(float64x2_t v) noexcept { return svdup_n_f64(vgetq_lane_f64(v, 0)); }
+        FORCE_INLINE static t_i Cast(int64x2_t v) noexcept { return svdup_n_s64(vgetq_lane_s64(v, 0)); }
+        FORCE_INLINE static t_f Cast(t_f v) noexcept { return v; }
+        FORCE_INLINE static t_i Cast(t_i v) noexcept { return v; }
+
+        FORCE_INLINE static t_i SetZeroI() { return svdup_n_s64(0); }
+        FORCE_INLINE static t_f SetZeroF() { return svdup_n_f64(0); }
+        FORCE_INLINE static t_f Set1(double v) { return svdup_n_f64(v); }
+        FORCE_INLINE static t_i Set1(int64_t v) { return svdup_n_s64(v); }
+
+        FORCE_INLINE static t_i CastI(t_f v) { return svreinterpret_s64_f64(v); }
+        FORCE_INLINE static t_f CastF(t_i v) { return svreinterpret_f64_s64(v); }
+        FORCE_INLINE static t_f CVTI2F(t_i v) { return svcvt_f64_s64_x(svptrue_b64(), v); }
+        FORCE_INLINE static t_i CVTF2I(t_f v) { return svcvt_s64_f64_x(svptrue_b64(), v); }
+
+        FORCE_INLINE static t_i CmpEqI(t_i v1, t_i v2) {
+            svbool_t pred = svcmpeq_s64(svptrue_b64(), v1, v2);
+            return svsel_s64(pred, svdup_n_s64(-1), svdup_n_s64(0));
+        }
+        FORCE_INLINE static t_i SRLI(t_i v, int i) {
+            return svreinterpret_s64_u64(svlsr_u64_x(svptrue_b64(), svreinterpret_u64_s64(v), svdup_n_u64((uint64_t)i)));
+        }
+        FORCE_INLINE static t_i SLLI(t_i v, int i) {
+            return svlsl_s64_x(svptrue_b64(), v, svdup_n_u64((uint64_t)i));
+        }
+        FORCE_INLINE static t_i SRAI32(t_i v, int i) {
+            svint32_t v32 = svreinterpret_s32_s64(v);
+            v32 = svasr_s32_x(svptrue_b32(), v32, svdup_n_u32((uint32_t)i));
+            return svreinterpret_s64_s32(v32);
+        }
+
+        FORCE_INLINE static int TestCF(t_f v1, t_f v2) {
+            svuint64_t bits = svbic_u64_x(svptrue_b64(), svreinterpret_u64_f64(v2), svreinterpret_u64_f64(v1));
+            return !svptest_any(svptrue_b64(), svcmpne_n_u64(svptrue_b64(), bits, 0));
+        }
+        FORCE_INLINE static int TestZF(t_f v1, t_f v2) {
+            svuint64_t bits = svand_u64_x(svptrue_b64(), svreinterpret_u64_f64(v1), svreinterpret_u64_f64(v2));
+            return !svptest_any(svptrue_b64(), svcmpne_n_u64(svptrue_b64(), bits, 0));
+        }
+
+        FORCE_INLINE static t_f AndF(t_f v1, t_f v2) {
+            return svreinterpret_f64_u64(svand_u64_x(svptrue_b64(), svreinterpret_u64_f64(v1), svreinterpret_u64_f64(v2)));
+        }
+        FORCE_INLINE static t_f AndNotF(t_f v1, t_f v2) {
+            return svreinterpret_f64_u64(svbic_u64_x(svptrue_b64(), svreinterpret_u64_f64(v2), svreinterpret_u64_f64(v1)));
+        }
+        FORCE_INLINE static t_f OrF(t_f v1, t_f v2) {
+            return svreinterpret_f64_u64(svorr_u64_x(svptrue_b64(), svreinterpret_u64_f64(v1), svreinterpret_u64_f64(v2)));
+        }
+        FORCE_INLINE static t_f XorF(t_f v1, t_f v2) {
+            return svreinterpret_f64_u64(sveor_u64_x(svptrue_b64(), svreinterpret_u64_f64(v1), svreinterpret_u64_f64(v2)));
+        }
+
+        FORCE_INLINE static t_i Sub(t_i v1, t_i v2) { return svsub_s64_x(svptrue_b64(), v1, v2); }
+        FORCE_INLINE static t_i Add(t_i v1, t_i v2) { return svadd_s64_x(svptrue_b64(), v1, v2); }
+
+        FORCE_INLINE static t_f BlendVF(t_f v1, t_f v2, t_f v3) {
+            svbool_t mask = svcmplt_s64(svptrue_b64(), svreinterpret_s64_f64(v3), svdup_n_s64(0));
+            return svsel_f64(mask, v2, v1);
+        }
+
+        template <int I_Mode>
+        FORCE_INLINE static t_f CmpFM(t_f v1, t_f v2) {
+            if constexpr (I_Mode == _CMP_EQ_OQ) {
+                svbool_t pred = svcmpeq_f64(svptrue_b64(), v1, v2);
+                return svreinterpret_f64_u64(svsel_u64(pred, svdup_n_u64(~(uint64_t)0), svdup_n_u64(0)));
+            } else {
+                svbool_t pred = svcmpgt_f64(svptrue_b64(), v1, v2);
+                return svreinterpret_f64_u64(svsel_u64(pred, svdup_n_u64(~(uint64_t)0), svdup_n_u64(0)));
+            }
+        }
+        template <int I_Mode>
+        FORCE_INLINE static t_f CmpF(t_f v1, t_f v2) { return CmpFM<I_Mode>(v1, v2); }
+        FORCE_INLINE static t_f CmpEqF(t_f v1, t_f v2) { return CmpFM<_CMP_EQ_OQ>(v1, v2); }
+
+        FORCE_INLINE static t_f Mul(t_f v1, t_f v2) { return svmul_f64_x(svptrue_b64(), v1, v2); }
+        FORCE_INLINE static t_f Div(t_f v1, t_f v2) { return svdiv_f64_x(svptrue_b64(), v1, v2); }
+        FORCE_INLINE static t_f Add(t_f v1, t_f v2) { return svadd_f64_x(svptrue_b64(), v1, v2); }
+        FORCE_INLINE static t_f Sub(t_f v1, t_f v2) { return svsub_f64_x(svptrue_b64(), v1, v2); }
+        FORCE_INLINE static t_f Sqrt(t_f v) { return svsqrt_f64_x(svptrue_b64(), v); }
+
+        FORCE_INLINE static t_f FMADD(t_f v1, t_f v2, t_f v3) { return svmla_f64_x(svptrue_b64(), v3, v1, v2); }
+        FORCE_INLINE static t_f FMSUB(t_f v1, t_f v2, t_f v3) { return svmla_f64_x(svptrue_b64(), svneg_f64_x(svptrue_b64(), v3), v1, v2); }
+        FORCE_INLINE static t_f FNMADD(t_f v1, t_f v2, t_f v3) { return svmls_f64_x(svptrue_b64(), v3, v1, v2); }
+
+        FORCE_INLINE static t_f Min(t_f v1, t_f v2) { return svmin_f64_x(svptrue_b64(), v1, v2); }
+        FORCE_INLINE static t_f Max(t_f v1, t_f v2) { return svmax_f64_x(svptrue_b64(), v1, v2); }
+        FORCE_INLINE static t_f Floor(t_f v) { return svrintm_f64_x(svptrue_b64(), v); }
+
+        FORCE_INLINE static t_f LoadU(const double* p) { return svld1_f64(svptrue_b64(), p); }
+        FORCE_INLINE static t_f Load(const double* p) { return svld1_f64(svptrue_b64(), p); }
+        FORCE_INLINE static void StoreU(double* p, t_f v) { svst1_f64(svptrue_b64(), p, v); }
+        FORCE_INLINE static void Store(double* p, t_f v) { svst1_f64(svptrue_b64(), p, v); }
+
+        // Set with individual values — only used in LnV for N==1 and N==2 branches,
+        // which are not taken for SVE (N==0). Provide a dummy to satisfy compilation.
+        FORCE_INLINE static t_f Set(double v1, double v2) { (void)v1; return svdup_n_f64(v2); }
+    };
+
+#endif // __ARM_FEATURE_SVE
 }
 
 #else
