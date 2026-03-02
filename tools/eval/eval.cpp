@@ -1,14 +1,18 @@
 #include "opts.h"
 
 #include <fastops/fastops.h>
+#if !(defined(__aarch64__) || defined(__arm__))
 #include <fastops/avx/ops_avx.h>
 #include <fastops/avx2/ops_avx2.h>
+#endif
 #include <fastops/plain/ops_plain.h>
 
 #include <iostream>
 
+#if !(defined(__aarch64__) || defined(__arm__))
 #include <xmmintrin.h>
 #include <pmmintrin.h>
+#endif
 
 #include <math.h>
 
@@ -17,6 +21,11 @@ static double GetRelError(double real, double approx) {
 }
 
 int main(int argc, char** argv) {
+#if defined(__aarch64__) || defined(__arm__)
+    std::cerr << "Eval tool is not supported on this architecture." << std::endl;
+    (void)argc; (void)argv;
+    return 0;
+#else
     TEvalOpts opts = ParseOptions(argc, argv);
 
     if (opts.NoDenormals) {
@@ -396,4 +405,5 @@ int main(int argc, char** argv) {
         }
     }
     std::cout << "Maximum relative error: " << maxError << std::endl;
+#endif
 }

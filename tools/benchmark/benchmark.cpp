@@ -1,10 +1,12 @@
 #include "opts.h"
 
 #include <fastops/fastops.h>
+#if !(defined(__aarch64__) || defined(__arm__))
 #include <fastops/avx/ops_avx.h>
 #include <fastops/avx2/ops_avx2.h>
-#include <fastops/plain/ops_plain.h>
 #include <fastops/core/avx_id.h>
+#endif
+#include <fastops/plain/ops_plain.h>
 
 #include <contrib/libs/fmath/fmath.hpp>
 
@@ -16,10 +18,13 @@
 #include <string>
 #include <vector>
 
+#if !(defined(__aarch64__) || defined(__arm__))
 #include <xmmintrin.h>
+#endif
 
 #include <math.h>
 
+#if !(defined(__aarch64__) || defined(__arm__))
 template <bool Exact>
 struct TAvxExp {
     template <class T>
@@ -466,8 +471,14 @@ void RunBenchmark(const TBenchmarkOpts& opts) {
         throw std::runtime_error("!(isExp || isLog || isSigm || isTanh)");
     }
 }
+#endif // x86
 
 int main(int argc, char** argv) {
+#if defined(__aarch64__) || defined(__arm__)
+    std::cerr << "Benchmark tool is not supported on this architecture." << std::endl;
+    (void)argc; (void)argv;
+    return 0;
+#else
     if (!NFastOps::HaveAvx()) {
         std::cerr << "At least AVX support is required to run this code. Exiting." << std::endl;
         return -1;
@@ -489,4 +500,5 @@ int main(int argc, char** argv) {
         RunBenchmark<float>(opts);
     }
     return 0;
+#endif
 }

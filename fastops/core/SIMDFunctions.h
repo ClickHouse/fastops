@@ -1237,7 +1237,9 @@ namespace NFastOps {
 
         FORCE_INLINE static t_i Sub(t_i v1, t_i v2) { return vsubq_s32(v1, v2); }
         FORCE_INLINE static t_f BlendVF(t_f v1, t_f v2, t_f v3) {
-            uint32x4_t mask = vreinterpretq_u32_f32(v3);
+            // Broadcast sign bit to all 32 bits, matching x86 blendv semantics:
+            // sign=1 (negative) selects from v2, sign=0 (non-negative) selects from v1.
+            uint32x4_t mask = vreinterpretq_u32_s32(vshrq_n_s32(vreinterpretq_s32_f32(v3), 31));
             return vbslq_f32(mask, v2, v1);
         }
 
@@ -1417,7 +1419,9 @@ namespace NFastOps {
 
         FORCE_INLINE static t_i Sub(t_i v1, t_i v2) { return vsubq_s64(v1, v2); }
         FORCE_INLINE static t_f BlendVF(t_f v1, t_f v2, t_f v3) {
-            uint64x2_t mask = vreinterpretq_u64_f64(v3);
+            // Broadcast sign bit to all 64 bits, matching x86 blendv semantics:
+            // sign=1 (negative) selects from v2, sign=0 (non-negative) selects from v1.
+            uint64x2_t mask = vreinterpretq_u64_s64(vshrq_n_s64(vreinterpretq_s64_f64(v3), 63));
             return vbslq_f64(mask, v2, v1);
         }
 

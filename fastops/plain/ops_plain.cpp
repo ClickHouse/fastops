@@ -1,5 +1,6 @@
 #include "ops_plain.h"
 
+#include <cmath>
 #include <contrib/libs/fmath/fmath.hpp>
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
@@ -61,25 +62,25 @@ namespace NFastOps {
 
     void Exp2Plain(const float* from, size_t size, float* to) {
         for (size_t i = 0; i < size; ++i) {
-            to[i] = fmath::expd(from[i] * 0.6931471805599453094172321214581765680755);
+            to[i] = exp2f(from[i]);
         }
     }
 
     void Exp2Plain(const double* from, size_t size, double* to) {
         for (size_t i = 0; i < size; ++i) {
-            to[i] = fmath::expd(from[i] * 0.6931471805599453094172321214581765680755);
+            to[i] = exp2(from[i]);
         }
     }
 
     void Exp10Plain(const float* from, size_t size, float* to) {
         for (size_t i = 0; i < size; ++i) {
-            to[i] = fmath::expd(from[i] * 2.302585092994045684017991454684364207601);
+            to[i] = exp10f(from[i]);
         }
     }
 
     void Exp10Plain(const double* from, size_t size, double* to) {
         for (size_t i = 0; i < size; ++i) {
-            to[i] = fmath::expd(from[i] * 2.302585092994045684017991454684364207601);
+            to[i] = exp10(from[i]);
         }
     }
 }
