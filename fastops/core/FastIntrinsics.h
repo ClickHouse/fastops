@@ -10,11 +10,7 @@
 #include <cstring>
 #include <type_traits>
 
-#ifdef FASTOPS_X86
 #define FASTOPS_MAX_REG_WIDTH 32
-#elif defined(FASTOPS_ARM64)
-#define FASTOPS_MAX_REG_WIDTH 16
-#endif
 
 #pragma warning(push)
 #pragma warning(disable : 4100)
@@ -449,14 +445,17 @@ namespace NFastOps {
                     vst1q_u8((uint8_t*)to, vld1q_u8((const uint8_t*)from));
 #endif
                 }
-#ifdef FASTOPS_X86
                 else if constexpr (I_BatchSize == 32) {
+#ifdef FASTOPS_X86
                     if constexpr (I_OutAligned)
                         _mm256_store_si256((__m256i*)(to), _mm256_loadu_si256((const __m256i*)(from)));
                     else
                         _mm256_storeu_si256((__m256i*)(to), _mm256_loadu_si256((const __m256i*)(from)));
-                }
+#elif defined(FASTOPS_ARM64)
+                    vst1q_u8((uint8_t*)to, vld1q_u8((const uint8_t*)from));
+                    vst1q_u8((uint8_t*)to + 16, vld1q_u8((const uint8_t*)from + 16));
 #endif
+                }
             } else {
                 if constexpr (I_BatchSize == 0)
                     ;
@@ -474,14 +473,17 @@ namespace NFastOps {
                     vst1q_f32((float*)to, vld1q_f32((const float*)from));
 #endif
                 }
-#ifdef FASTOPS_X86
                 else if constexpr (I_BatchSize == 32) {
+#ifdef FASTOPS_X86
                     if constexpr (I_OutAligned)
                         _mm256_store_ps((float*)(to), _mm256_loadu_ps((const float*)(from)));
                     else
                         _mm256_storeu_ps((float*)(to), _mm256_loadu_ps((const float*)(from)));
-                }
+#elif defined(FASTOPS_ARM64)
+                    vst1q_f32((float*)to, vld1q_f32((const float*)from));
+                    vst1q_f32((float*)to + 4, vld1q_f32((const float*)from + 4));
 #endif
+                }
             }
         }
     };
@@ -543,14 +545,17 @@ namespace NFastOps {
                     vst1q_u8((uint8_t*)to, val);
 #endif
                 }
-#ifdef FASTOPS_X86
                 else if constexpr (I_BatchSize == 32) {
+#ifdef FASTOPS_X86
                     if constexpr (I_OutAligned)
                         _mm256_store_si256((__m256i*)(to), val);
                     else
                         _mm256_storeu_si256((__m256i*)(to), val);
-                }
+#elif defined(FASTOPS_ARM64)
+                    vst1q_u8((uint8_t*)to, val);
+                    vst1q_u8((uint8_t*)to + 16, val);
 #endif
+                }
             } else {
                 if constexpr (I_BatchSize == 0)
                     ;
@@ -576,14 +581,17 @@ namespace NFastOps {
                     vst1q_u8((uint8_t*)to, val);
 #endif
                 }
-#ifdef FASTOPS_X86
                 else if constexpr (I_BatchSize == 32) {
+#ifdef FASTOPS_X86
                     if constexpr (I_OutAligned)
                         _mm256_store_ps((float*)(to), _mm256_castsi256_ps(val));
                     else
                         _mm256_storeu_ps((float*)(to), _mm256_castsi256_ps(val));
-                }
+#elif defined(FASTOPS_ARM64)
+                    vst1q_u8((uint8_t*)to, val);
+                    vst1q_u8((uint8_t*)to + 16, val);
 #endif
+                }
             }
         }
     };
