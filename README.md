@@ -5,7 +5,7 @@ This small library enables acceleration of bulk calls of certain math functions 
 
 Supported architectures:
 * **x86 (SSE/AVX/AVX2)**: runtime CPU dispatch selects the best available instruction set. Pre-AVX fallback uses the fmath library.
-* **AArch64 (NEON)**: 128-bit NEON SIMD with native FMA. Always enabled on AArch64 — no runtime dispatch needed.
+* **AArch64 (NEON/SVE)**: runtime dispatch selects SVE when available (any vector width), otherwise falls back to 128-bit NEON with native FMA. SVE benefits even at 128-bit width thanks to predicated tail handling that eliminates scalar remainder loops.
 
 `fastops/fastops.h` header provides the interface for the best version of each function. All functions are approximate, yet quite precise. Accuracy of each operation is detailed below along with operation description. All implementation architectures share the same polynomial coefficients and evaluation scheme, so accuracy is consistent across platforms.
 
@@ -29,7 +29,7 @@ Tools
 =================================
 Two tools are provided along the library:
 * tools/eval - let one check the accuracy of operations under different conditions.
-* tools/benchmark - compares performance of AVX/AVX2 optimized versions with baseline fmath implementation.
+* tools/benchmark - compares performance of optimized SIMD versions (AVX/AVX2 on x86, NEON/SVE on AArch64) with baseline implementations.
 Use `--help` for set of supported options.
 
 On x86, please note that running these tools on pre-AVX hardware makes little sense.
@@ -37,7 +37,7 @@ On x86, please note that running these tools on pre-AVX hardware makes little se
 * tools/eval allows selecting instruction set via command line and does not perform any checks.
   It will just crash if ran on incompatible hardware.
 
-On AArch64, both tools use the NEON implementation directly.
+On AArch64, both tools use the SVE or NEON implementation via the same runtime dispatch.
 
 Functions
 =================================
@@ -45,12 +45,11 @@ The dispathed interfaces are available via `fastops/fastops.h` header file. Ther
 double precision versions for each operation. Template parameters include speed/accuracy and alignment controls.
 * Speed/accuracy is bool letting you choose faster or more precise version of algorithm.
 * Alignment control allows to select whether the output array is aligned or not
-  (32-byte on x86 AVX, 16-byte on AArch64 NEON). The common belief is that unaligned
-  versions may perform slower, but special studies for our functions were not performed.
-  Choose this parameter according to your array alignment: aligned SIMD operations on
-  unaligned data may crash.
+  (32-byte on x86 AVX). On AArch64 all NEON/SVE loads and stores are naturally
+  unaligned, so the alignment flag has no effect. On x86, aligned SIMD operations
+  on unaligned data may crash.
 
-All the library functionality is directly available via `fastops/core/FastIntrinsics.h` header, but then you should care about hardware compatibility yourself. On x86, a tiny AVX and AVX2 hardware detection utility is available via `fastops/core/avx_id.h`. On AArch64, NEON is always present so no detection is needed.
+All the library functionality is directly available via `fastops/core/FastIntrinsics.h` header, but then you should care about hardware compatibility yourself. On x86, a tiny AVX and AVX2 hardware detection utility is available via `fastops/core/avx_id.h`. On AArch64, NEON is always present; SVE availability is detected at runtime via `HaveSve()` in `fastops/sve/ops_sve.h`.
 
 Below we use the following terms:
 <UL> * x - input value </UL>
