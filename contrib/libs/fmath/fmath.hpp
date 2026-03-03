@@ -562,16 +562,13 @@ __m128i iaxL = _mm_castpd_si128(_mm_load_sd((const double*)&c.tbl[adr0]));
 }
 #endif // x86
 
+#if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
 /*
 	px : pointer to array of double
 	n : size of array(assume multiple of 2 or 4)
 */
 inline void expd_v(double *px, size_t n)
 {
-#if !(defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86))
-	for (size_t i = 0; i < n; i++)
-		px[i] = expd(px[i]);
-#else
 	using namespace local;
 	const ExpdVar<>& c = C<>::expdVar();
 	const double b = double(3ULL << 51);
@@ -653,8 +650,8 @@ inline void expd_v(double *px, size_t n)
 	for (size_t i = 0; i < r; i++) {
 		px[i] = expd(px[i]);
 	}
-#endif // x86
 }
+#endif // x86
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
 #ifdef FMATH_USE_XBYAK
