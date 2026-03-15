@@ -541,7 +541,7 @@ struct TSlowExp2 {
 struct TSlowExp10 {
     template <class T>
     static void Apply(const T* from, size_t size, T* to) {
-        for (size_t i = 0; i < size; ++i) to[i] = exp10(from[i]);
+        for (size_t i = 0; i < size; ++i) to[i] = pow((T)10, from[i]);
     }
 };
 struct TSlowLog {
