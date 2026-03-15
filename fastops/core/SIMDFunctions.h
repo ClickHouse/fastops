@@ -1782,7 +1782,10 @@ namespace NFastOps {
         using t_i = svint32_t;
         using t_base_type = float;
 
-        // Cast from NEON constant (all lanes identical) to SVE broadcast
+        // Cast from NEON constant to SVE by extracting lane 0 and broadcasting.
+        // INVARIANT: all S_Constants values are produced by Set1 (uniform broadcast),
+        // so lane 0 == all lanes. If a non-broadcast constant is ever added, these
+        // casts will silently produce incorrect results for SVE.
         FORCE_INLINE static t_f Cast(float32x4_t v) noexcept { return svdup_n_f32(vgetq_lane_f32(v, 0)); }
         FORCE_INLINE static t_i Cast(int32x4_t v) noexcept { return svdup_n_s32(vgetq_lane_s32(v, 0)); }
         FORCE_INLINE static t_f Cast(t_f v) noexcept { return v; }
@@ -1796,7 +1799,9 @@ namespace NFastOps {
         FORCE_INLINE static t_i CastI(t_f v) { return svreinterpret_s32_f32(v); }
         FORCE_INLINE static t_f CastF(t_i v) { return svreinterpret_f32_s32(v); }
         FORCE_INLINE static t_f CVTI2F(t_i v) { return svcvt_f32_s32_x(svptrue_b32(), v); }
-        FORCE_INLINE static t_i CVTF2I(t_f v) { return svcvt_s32_f32_x(svptrue_b32(), v); }
+        // Round to nearest-even explicitly before converting, matching NEON
+        // vcvtnq / x86 cvtps2dq semantics regardless of FPCR rounding mode.
+        FORCE_INLINE static t_i CVTF2I(t_f v) { return svcvt_s32_f32_x(svptrue_b32(), svrintn_f32_x(svptrue_b32(), v)); }
 
         FORCE_INLINE static t_i CmpEqI(t_i v1, t_i v2) {
             svbool_t pred = svcmpeq_s32(svptrue_b32(), v1, v2);
@@ -1883,6 +1888,7 @@ namespace NFastOps {
         using t_i = svint64_t;
         using t_base_type = double;
 
+        // See S_SIMDV<0, 4>::Cast comment — same broadcast invariant applies.
         FORCE_INLINE static t_f Cast(float64x2_t v) noexcept { return svdup_n_f64(vgetq_lane_f64(v, 0)); }
         FORCE_INLINE static t_i Cast(int64x2_t v) noexcept { return svdup_n_s64(vgetq_lane_s64(v, 0)); }
         FORCE_INLINE static t_f Cast(t_f v) noexcept { return v; }
@@ -1896,7 +1902,9 @@ namespace NFastOps {
         FORCE_INLINE static t_i CastI(t_f v) { return svreinterpret_s64_f64(v); }
         FORCE_INLINE static t_f CastF(t_i v) { return svreinterpret_f64_s64(v); }
         FORCE_INLINE static t_f CVTI2F(t_i v) { return svcvt_f64_s64_x(svptrue_b64(), v); }
-        FORCE_INLINE static t_i CVTF2I(t_f v) { return svcvt_s64_f64_x(svptrue_b64(), v); }
+        // Round to nearest-even explicitly before converting, matching NEON
+        // vcvtnq / x86 cvtps2dq semantics regardless of FPCR rounding mode.
+        FORCE_INLINE static t_i CVTF2I(t_f v) { return svcvt_s64_f64_x(svptrue_b64(), svrintn_f64_x(svptrue_b64(), v)); }
 
         FORCE_INLINE static t_i CmpEqI(t_i v1, t_i v2) {
             svbool_t pred = svcmpeq_s64(svptrue_b64(), v1, v2);
