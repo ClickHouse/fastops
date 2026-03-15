@@ -74,13 +74,21 @@ namespace NFastOps {
 
     void Exp10Plain(const float* from, size_t size, float* to) {
         for (size_t i = 0; i < size; ++i) {
+#ifdef __GLIBC__
             to[i] = exp10f(from[i]);
+#else
+            to[i] = expf(from[i] * 2.3025850929940456840179914546843642f);
+#endif
         }
     }
 
     void Exp10Plain(const double* from, size_t size, double* to) {
         for (size_t i = 0; i < size; ++i) {
+#ifdef __GLIBC__
             to[i] = exp10(from[i]);
+#else
+            to[i] = exp(from[i] * 2.3025850929940456840179914546843642);
+#endif
         }
     }
 }

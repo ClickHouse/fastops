@@ -1768,6 +1768,9 @@ namespace NFastOps {
     //############################################################################################################################################################
     // SVE specializations: N=0 is a VLA tag (no existing specialization uses N=0).
     // Only available when compiled with -march=armv8-a+sve (or similar).
+    // Kept in SIMDFunctions.h (not a separate header) for consistency with
+    // the x86/NEON specializations above. Only ops_sve.cpp compiles with
+    // SVE enabled, so these specializations are confined to that TU.
     //############################################################################################################################################################
 #ifdef __ARM_FEATURE_SVE
 #include <arm_sve.h>
@@ -1975,8 +1978,9 @@ namespace NFastOps {
         FORCE_INLINE static void Store(double* p, t_f v) { svst1_f64(svptrue_b64(), p, v); }
 
         // Set with individual values — only used in LnV for N==1 and N==2 branches,
-        // which are not taken for SVE (N==0). Provide a dummy to satisfy compilation.
-        FORCE_INLINE static t_f Set(double v1, double v2) { (void)v1; return svdup_n_f64(v2); }
+        // which are not taken for SVE (N==0). Must exist to satisfy compilation but
+        // must never actually be called.
+        FORCE_INLINE static t_f Set(double, double) { __builtin_unreachable(); }
     };
 
 #endif // __ARM_FEATURE_SVE

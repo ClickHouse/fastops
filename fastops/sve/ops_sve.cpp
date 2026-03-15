@@ -1,18 +1,27 @@
 #include "ops_sve.h"
 
 #include <arm_sve.h>
-#include <sys/auxv.h>
 #include <fastops/core/FastIntrinsics.h>
 
+// getauxval(AT_HWCAP) is Linux-specific. SVE is currently only exposed on
+// Linux AArch64 (not macOS, FreeBSD, or Windows ARM64), so we guard the
+// runtime detection and return false on other platforms.
+#if defined(__linux__)
+#include <sys/auxv.h>
 #ifndef HWCAP_SVE
 #define HWCAP_SVE (1 << 22)
+#endif
 #endif
 
 namespace NFastOps {
 
 bool HaveSve() {
+#if defined(__linux__)
     static bool result = (getauxval(AT_HWCAP) & HWCAP_SVE) != 0;
     return result;
+#else
+    return false;
+#endif
 }
 
 bool SveVectorLengthGt128() {

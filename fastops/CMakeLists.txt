@@ -16,7 +16,16 @@ endif()
 
 install(TARGETS fastops DESTINATION lib)
 install(FILES fastops.h DESTINATION include)
-install(FILES core/FastIntrinsics.h core/SIMDFunctions.h core/avx_id.h DESTINATION include/core)
+install(FILES core/FastIntrinsics.h core/SIMDFunctions.h DESTINATION include/core)
 install(FILES plain/ops_plain.h DESTINATION include/plain)
+
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
+    install(FILES neon/ops_neon.h DESTINATION include/neon)
+    install(FILES sve/ops_sve.h DESTINATION include/sve)
+else()
+    install(FILES core/avx_id.h DESTINATION include/core)
+    install(FILES avx/ops_avx.h DESTINATION include/avx)
+    install(FILES avx2/ops_avx2.h DESTINATION include/avx2)
+endif()
 
 add_subdirectory(ut)
