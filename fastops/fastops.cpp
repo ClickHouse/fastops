@@ -1,6 +1,6 @@
 #include "fastops.h"
 
-#if defined(__aarch64__) || defined(_M_ARM64)
+#if defined(__aarch64__)
 
 #include <fastops/neon/ops_neon.h>
 #if defined(__linux__)

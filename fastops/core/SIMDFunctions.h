@@ -7,7 +7,7 @@
 
 #if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
 #define FASTOPS_X86
-#elif defined(__aarch64__) || defined(_M_ARM64)
+#elif defined(__aarch64__)
 #define FASTOPS_ARM64
 #endif
 

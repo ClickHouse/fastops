@@ -3,10 +3,6 @@
 #include <cmath>
 #include <contrib/libs/fmath/fmath.hpp>
 
-#if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
-#include <xmmintrin.h>
-#endif
-
 namespace NFastOps {
     void ExpPlain(const float* from, size_t size, float* to) {
         for (size_t i = 0; i < size; ++i) {
