@@ -1,8 +1,7 @@
 #include "ops_plain.h"
 
+#include <cmath>
 #include <contrib/libs/fmath/fmath.hpp>
-
-#include <xmmintrin.h>
 
 namespace NFastOps {
     void ExpPlain(const float* from, size_t size, float* to) {
@@ -54,6 +53,38 @@ namespace NFastOps {
     void TanhPlain(const double* from, size_t size, double* to) {
         for (size_t i = 0; i < size; ++i) {
             to[i] = 2 / (1.0 + fmath::expd(-2 * from[i])) - 1;
+        }
+    }
+
+    void Exp2Plain(const float* from, size_t size, float* to) {
+        for (size_t i = 0; i < size; ++i) {
+            to[i] = exp2f(from[i]);
+        }
+    }
+
+    void Exp2Plain(const double* from, size_t size, double* to) {
+        for (size_t i = 0; i < size; ++i) {
+            to[i] = exp2(from[i]);
+        }
+    }
+
+    void Exp10Plain(const float* from, size_t size, float* to) {
+        for (size_t i = 0; i < size; ++i) {
+#ifdef __GLIBC__
+            to[i] = exp10f(from[i]);
+#else
+            to[i] = expf(from[i] * 2.3025850929940456840179914546843642f);
+#endif
+        }
+    }
+
+    void Exp10Plain(const double* from, size_t size, double* to) {
+        for (size_t i = 0; i < size; ++i) {
+#ifdef __GLIBC__
+            to[i] = exp10(from[i]);
+#else
+            to[i] = exp(from[i] * 2.3025850929940456840179914546843642);
+#endif
         }
     }
 }

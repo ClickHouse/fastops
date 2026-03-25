@@ -1,5 +1,9 @@
+#if defined(__aarch64__) || defined(__arm__)
+#include <fastops/neon/ops_neon.h>
+#else
 #include <fastops/avx/ops_avx.h>
 #include <fastops/avx2/ops_avx2.h>
+#endif
 #include <fastops/plain/ops_plain.h>
 
 #include <cstring>
@@ -11,8 +15,10 @@
 #include <vector>
 
 #include <math.h>
+#if !(defined(__aarch64__) || defined(__arm__))
 #include <xmmintrin.h>
 #include <pmmintrin.h>
+#endif
 
 class FastOpsTestException : public std::exception {
 protected:
@@ -44,6 +50,8 @@ static double GetRelError(double real, double approx) {
 
 enum class EFunc {
     Exp,
+    Exp2,
+    Exp10,
     Log,
     Sigmoid,
     Tanh
@@ -120,6 +128,8 @@ void TestFunc(std::mt19937_64& rng, TTestExpOpts opts) {
                     val = exp(val);
                     break;
                 case EFunc::Exp:
+                case EFunc::Exp2:
+                case EFunc::Exp10:
                 case EFunc::Sigmoid:
                 case EFunc::Tanh:
                     break;
@@ -155,6 +165,16 @@ void TestFunc(std::mt19937_64& rng, TTestExpOpts opts) {
                     }
                     case EFunc::Exp: {
                         trueVal = exp(ReadUnaligned<T>(origInData + j2));
+                        approxVal = ReadUnaligned<T>(outDataStart + j);
+                        break;
+                    }
+                    case EFunc::Exp2: {
+                        trueVal = exp2(ReadUnaligned<T>(origInData + j2));
+                        approxVal = ReadUnaligned<T>(outDataStart + j);
+                        break;
+                    }
+                    case EFunc::Exp10: {
+                        trueVal = pow((T)10, ReadUnaligned<T>(origInData + j2));
                         approxVal = ReadUnaligned<T>(outDataStart + j);
                         break;
                     }
@@ -263,16 +283,27 @@ void UnitTestFunc() {
         if (TFunc::GetType() == EFunc::Sigmoid || TFunc::GetType() == EFunc::Tanh) {
             min = -20;
             max = 20;
+        } else if (TFunc::GetType() == EFunc::Exp10) {
+            min = -50;
+            max = 50;
+            if (sizeof(T) != 4) {
+                min = -350;
+                max = 350;
+            }
         }
 
         for (bool enableDenormals : {false, true}) {
             for (bool inplace : {false, true}) {
                 if (enableDenormals) {
+#if !(defined(__aarch64__) || defined(__arm__))
                     _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_OFF);
                     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_OFF);
+#endif
                 } else {
+#if !(defined(__aarch64__) || defined(__arm__))
                     _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_ON);
                     _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+#endif
                 }
 
                 std::mt19937_64 rng(15);
@@ -396,12 +427,15 @@ void UnitTestFunc() {
             }
         }
     } catch (...) {
+#if !(defined(__aarch64__) || defined(__arm__))
         _MM_SET_FLUSH_ZERO_MODE(_MM_FLUSH_ZERO_OFF);
         _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_OFF);
+#endif
         throw;
     }
 }
 
+#if !(defined(__aarch64__) || defined(__arm__))
 template <bool EXACT, bool ALIGNED>
 struct TAvx2Exp {
     static constexpr bool Aligned = ALIGNED;
@@ -429,6 +463,7 @@ struct TAvxExp {
         NFastOps::ExpAvx<EXACT, ALIGNED>(from, size, to);
     }
 };
+#endif
 
 struct TPlainExp {
     static constexpr bool Aligned = false;
@@ -443,7 +478,48 @@ struct TPlainExp {
     }
 };
 
+#if defined(__aarch64__) || defined(__arm__)
+template <bool EXACT, bool ALIGNED>
+struct TNeonExp {
+    static constexpr bool Aligned = ALIGNED;
+
+    static EFunc GetType() {
+        return EFunc::Exp;
+    }
+
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::ExpNeon<EXACT, ALIGNED>(from, size, to);
+    }
+};
+#endif
+
 void TestFastExp() {
+#if defined(__aarch64__) || defined(__arm__)
+    std::cerr << "  NEON INEXACT UNALIGNED FLOAT (1/10)..." << std::endl;
+    UnitTestFunc<TNeonExp<false, false>, TExpCompare<false, false>, float>();
+    std::cerr << "  NEON INEXACT ALIGNED FLOAT (2/10)..." << std::endl;
+    UnitTestFunc<TNeonExp<false, true>, TExpCompare<false, false>, float>();
+    std::cerr << "  NEON EXACT UNALIGNED FLOAT (3/10)..." << std::endl;
+    UnitTestFunc<TNeonExp<true, false>, TExpCompare<true, false>, float>();
+    std::cerr << "  NEON EXACT ALIGNED FLOAT (4/10)..." << std::endl;
+    UnitTestFunc<TNeonExp<true, true>, TExpCompare<true, false>, float>();
+
+    std::cerr << "  BASELINE FLOAT (5/10)..." << std::endl;
+    UnitTestFunc<TPlainExp, TExpCompare<true, false>, float>();
+
+    std::cerr << "  NEON INEXACT UNALIGNED DOUBLE (6/10)..." << std::endl;
+    UnitTestFunc<TNeonExp<false, false>, TExpCompare<false, true>, double>();
+    std::cerr << "  NEON INEXACT ALIGNED DOUBLE (7/10)..." << std::endl;
+    UnitTestFunc<TNeonExp<false, true>, TExpCompare<false, true>, double>();
+    std::cerr << "  NEON EXACT UNALIGNED DOUBLE (8/10)..." << std::endl;
+    UnitTestFunc<TNeonExp<true, false>, TExpCompare<true, true>, double>();
+    std::cerr << "  NEON EXACT ALIGNED DOUBLE (9/10)..." << std::endl;
+    UnitTestFunc<TNeonExp<true, true>, TExpCompare<true, true>, double>();
+
+    std::cerr << "  BASELINE DOUBLE (10/10)..." << std::endl;
+    UnitTestFunc<TPlainExp, TExpCompare<true, true>, double>();
+#else
     std::cerr << "  AVX2 INEXACT UNALIGNED FLOAT (1/18)..." << std::endl;
     UnitTestFunc<TAvx2Exp<false, false>, TExpCompare<false, false>, float>();
     std::cerr << "  AVX2 INEXACT ALIGNED FLOAT (2/18)..." << std::endl;
@@ -485,6 +561,356 @@ void TestFastExp() {
 
     std::cerr << "  BASELINE DOUBLE (18/18)..." << std::endl;
     UnitTestFunc<TPlainExp, TExpCompare<true, true>, double>();
+#endif
+}
+
+// Exp2 uses the same Pow2V kernel as Exp but with multiply factor 1.0.
+// Saturation boundaries shift: float at x < -125, double at x < -1022.
+template <bool Exact, bool IsDouble>
+struct TExp2Compare {
+    static bool Compare(double input, double trueVal, double approxVal) {
+        if (!Exact && !IsDouble) {
+            if (input < -125) {
+                return approxVal <= 1.0001 * trueVal;
+            } else if (std::isinf(trueVal)) {
+                return std::isinf(approxVal);
+            } else {
+                return GetRelError(trueVal, approxVal) < 7.21e-06;
+            }
+        }
+        if (!Exact && IsDouble) {
+            if (input < -1020) {
+                return approxVal <= 1.0001 * trueVal;
+            } else if (std::isinf(trueVal)) {
+                return std::isinf(approxVal);
+            } else {
+                return GetRelError(trueVal, approxVal) < 3.5e-06;
+            }
+        }
+        if (Exact && !IsDouble) {
+            if (std::isinf(trueVal)) {
+                return std::isinf(approxVal);
+            } else if (input <= -126) {
+                return approxVal == 0 || approxVal / 2.01 < trueVal;
+            } else {
+                return GetRelError(trueVal, approxVal) < 3.92e-06;
+            }
+        }
+        if (Exact && IsDouble) {
+            if (std::isinf(trueVal)) {
+                return std::isinf(approxVal);
+            } else if (input > 1023.9 && std::isinf(approxVal)) {
+                return true;
+            } else {
+                return GetRelError(trueVal, approxVal) < 2.3e-9;
+            }
+        }
+        UNIT_ASSERT(false);
+    }
+};
+
+#if !(defined(__aarch64__) || defined(__arm__))
+template <bool EXACT, bool ALIGNED>
+struct TAvx2Exp2 {
+    static constexpr bool Aligned = ALIGNED;
+
+    static EFunc GetType() {
+        return EFunc::Exp2;
+    }
+
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp2Avx2<EXACT, ALIGNED>(from, size, to);
+    }
+};
+
+template <bool EXACT, bool ALIGNED>
+struct TAvxExp2 {
+    static constexpr bool Aligned = ALIGNED;
+
+    static EFunc GetType() {
+        return EFunc::Exp2;
+    }
+
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp2Avx<EXACT, ALIGNED>(from, size, to);
+    }
+};
+#endif
+
+struct TPlainExp2 {
+    static constexpr bool Aligned = false;
+
+    static EFunc GetType() {
+        return EFunc::Exp2;
+    }
+
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp2Plain(from, size, to);
+    }
+};
+
+#if defined(__aarch64__) || defined(__arm__)
+template <bool EXACT, bool ALIGNED>
+struct TNeonExp2 {
+    static constexpr bool Aligned = ALIGNED;
+
+    static EFunc GetType() {
+        return EFunc::Exp2;
+    }
+
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp2Neon<EXACT, ALIGNED>(from, size, to);
+    }
+};
+#endif
+
+void TestFastExp2() {
+#if defined(__aarch64__) || defined(__arm__)
+    std::cerr << "  NEON INEXACT UNALIGNED FLOAT (1/10)..." << std::endl;
+    UnitTestFunc<TNeonExp2<false, false>, TExp2Compare<false, false>, float>();
+    std::cerr << "  NEON INEXACT ALIGNED FLOAT (2/10)..." << std::endl;
+    UnitTestFunc<TNeonExp2<false, true>, TExp2Compare<false, false>, float>();
+    std::cerr << "  NEON EXACT UNALIGNED FLOAT (3/10)..." << std::endl;
+    UnitTestFunc<TNeonExp2<true, false>, TExp2Compare<true, false>, float>();
+    std::cerr << "  NEON EXACT ALIGNED FLOAT (4/10)..." << std::endl;
+    UnitTestFunc<TNeonExp2<true, true>, TExp2Compare<true, false>, float>();
+
+    std::cerr << "  BASELINE FLOAT (5/10)..." << std::endl;
+    UnitTestFunc<TPlainExp2, TExp2Compare<true, false>, float>();
+
+    std::cerr << "  NEON INEXACT UNALIGNED DOUBLE (6/10)..." << std::endl;
+    UnitTestFunc<TNeonExp2<false, false>, TExp2Compare<false, true>, double>();
+    std::cerr << "  NEON INEXACT ALIGNED DOUBLE (7/10)..." << std::endl;
+    UnitTestFunc<TNeonExp2<false, true>, TExp2Compare<false, true>, double>();
+    std::cerr << "  NEON EXACT UNALIGNED DOUBLE (8/10)..." << std::endl;
+    UnitTestFunc<TNeonExp2<true, false>, TExp2Compare<true, true>, double>();
+    std::cerr << "  NEON EXACT ALIGNED DOUBLE (9/10)..." << std::endl;
+    UnitTestFunc<TNeonExp2<true, true>, TExp2Compare<true, true>, double>();
+
+    std::cerr << "  BASELINE DOUBLE (10/10)..." << std::endl;
+    UnitTestFunc<TPlainExp2, TExp2Compare<true, true>, double>();
+#else
+    std::cerr << "  AVX2 INEXACT UNALIGNED FLOAT (1/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp2<false, false>, TExp2Compare<false, false>, float>();
+    std::cerr << "  AVX2 INEXACT ALIGNED FLOAT (2/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp2<false, true>, TExp2Compare<false, false>, float>();
+    std::cerr << "  AVX2 EXACT UNALIGNED FLOAT (3/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp2<true, false>, TExp2Compare<true, false>, float>();
+    std::cerr << "  AVX2 EXACT ALIGNED FLOAT (4/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp2<true, true>, TExp2Compare<true, false>, float>();
+
+    std::cerr << "  AVX INEXACT UNALIGNED FLOAT (5/18)..." << std::endl;
+    UnitTestFunc<TAvxExp2<false, false>, TExp2Compare<false, false>, float>();
+    std::cerr << "  AVX INEXACT ALIGNED FLOAT (6/18)..." << std::endl;
+    UnitTestFunc<TAvxExp2<false, true>, TExp2Compare<false, false>, float>();
+    std::cerr << "  AVX EXACT UNALIGNED FLOAT (7/18)..." << std::endl;
+    UnitTestFunc<TAvxExp2<true, false>, TExp2Compare<true, false>, float>();
+    std::cerr << "  AVX EXACT ALIGNED FLOAT (8/18)..." << std::endl;
+    UnitTestFunc<TAvxExp2<true, true>, TExp2Compare<true, false>, float>();
+
+    std::cerr << "  BASELINE FLOAT (9/18)..." << std::endl;
+    UnitTestFunc<TPlainExp2, TExp2Compare<true, false>, float>();
+
+    std::cerr << "  AVX2 INEXACT UNALIGNED DOUBLE (10/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp2<false, false>, TExp2Compare<false, true>, double>();
+    std::cerr << "  AVX2 INEXACT ALIGNED DOUBLE (11/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp2<false, true>, TExp2Compare<false, true>, double>();
+    std::cerr << "  AVX2 EXACT UNALIGNED DOUBLE (12/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp2<true, false>, TExp2Compare<true, true>, double>();
+    std::cerr << "  AVX2 EXACT ALIGNED DOUBLE (13/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp2<true, true>, TExp2Compare<true, true>, double>();
+
+    std::cerr << "  AVX INEXACT UNALIGNED DOUBLE (14/18)..." << std::endl;
+    UnitTestFunc<TAvxExp2<false, false>, TExp2Compare<false, true>, double>();
+    std::cerr << "  AVX INEXACT ALIGNED DOUBLE (15/18)..." << std::endl;
+    UnitTestFunc<TAvxExp2<false, true>, TExp2Compare<false, true>, double>();
+    std::cerr << "  AVX EXACT UNALIGNED DOUBLE (16/18)..." << std::endl;
+    UnitTestFunc<TAvxExp2<true, false>, TExp2Compare<true, true>, double>();
+    std::cerr << "  AVX EXACT ALIGNED DOUBLE (17/18)..." << std::endl;
+    UnitTestFunc<TAvxExp2<true, true>, TExp2Compare<true, true>, double>();
+
+    std::cerr << "  BASELINE DOUBLE (18/18)..." << std::endl;
+    UnitTestFunc<TPlainExp2, TExp2Compare<true, true>, double>();
+#endif
+}
+
+// Exp10 uses Pow2V with multiply factor log2(10).
+// The extra multiplication adds a small additional error compared to Exp.
+// Saturation boundaries: float at x < -37.5, double at x < -307.
+template <bool Exact, bool IsDouble>
+struct TExp10Compare {
+    static bool Compare(double input, double trueVal, double approxVal) {
+        if (!Exact && !IsDouble) {
+            if (input < -37.5) {
+                return approxVal <= 1.0001 * trueVal;
+            } else if (std::isinf(trueVal)) {
+                return std::isinf(approxVal);
+            } else {
+                return GetRelError(trueVal, approxVal) < 8e-06;
+            }
+        }
+        if (!Exact && IsDouble) {
+            if (input < -307) {
+                return approxVal <= 1.0001 * trueVal;
+            } else if (std::isinf(trueVal)) {
+                return std::isinf(approxVal);
+            } else {
+                return GetRelError(trueVal, approxVal) < 4e-06;
+            }
+        }
+        if (Exact && !IsDouble) {
+            if (std::isinf(trueVal)) {
+                return std::isinf(approxVal);
+            } else if (input <= -38) {
+                return approxVal == 0 || approxVal / 2.01 < trueVal;
+            } else {
+                return GetRelError(trueVal, approxVal) < 5e-06;
+            }
+        }
+        if (Exact && IsDouble) {
+            if (std::isinf(trueVal)) {
+                return std::isinf(approxVal);
+            } else if (input > 308.2 && std::isinf(approxVal)) {
+                return true;
+            } else {
+                return GetRelError(trueVal, approxVal) < 3e-9;
+            }
+        }
+        UNIT_ASSERT(false);
+    }
+};
+
+#if !(defined(__aarch64__) || defined(__arm__))
+template <bool EXACT, bool ALIGNED>
+struct TAvx2Exp10 {
+    static constexpr bool Aligned = ALIGNED;
+
+    static EFunc GetType() {
+        return EFunc::Exp10;
+    }
+
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp10Avx2<EXACT, ALIGNED>(from, size, to);
+    }
+};
+
+template <bool EXACT, bool ALIGNED>
+struct TAvxExp10 {
+    static constexpr bool Aligned = ALIGNED;
+
+    static EFunc GetType() {
+        return EFunc::Exp10;
+    }
+
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp10Avx<EXACT, ALIGNED>(from, size, to);
+    }
+};
+#endif
+
+struct TPlainExp10 {
+    static constexpr bool Aligned = false;
+
+    static EFunc GetType() {
+        return EFunc::Exp10;
+    }
+
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp10Plain(from, size, to);
+    }
+};
+
+#if defined(__aarch64__) || defined(__arm__)
+template <bool EXACT, bool ALIGNED>
+struct TNeonExp10 {
+    static constexpr bool Aligned = ALIGNED;
+
+    static EFunc GetType() {
+        return EFunc::Exp10;
+    }
+
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::Exp10Neon<EXACT, ALIGNED>(from, size, to);
+    }
+};
+#endif
+
+void TestFastExp10() {
+#if defined(__aarch64__) || defined(__arm__)
+    std::cerr << "  NEON INEXACT UNALIGNED FLOAT (1/10)..." << std::endl;
+    UnitTestFunc<TNeonExp10<false, false>, TExp10Compare<false, false>, float>();
+    std::cerr << "  NEON INEXACT ALIGNED FLOAT (2/10)..." << std::endl;
+    UnitTestFunc<TNeonExp10<false, true>, TExp10Compare<false, false>, float>();
+    std::cerr << "  NEON EXACT UNALIGNED FLOAT (3/10)..." << std::endl;
+    UnitTestFunc<TNeonExp10<true, false>, TExp10Compare<true, false>, float>();
+    std::cerr << "  NEON EXACT ALIGNED FLOAT (4/10)..." << std::endl;
+    UnitTestFunc<TNeonExp10<true, true>, TExp10Compare<true, false>, float>();
+
+    std::cerr << "  BASELINE FLOAT (5/10)..." << std::endl;
+    UnitTestFunc<TPlainExp10, TExp10Compare<true, false>, float>();
+
+    std::cerr << "  NEON INEXACT UNALIGNED DOUBLE (6/10)..." << std::endl;
+    UnitTestFunc<TNeonExp10<false, false>, TExp10Compare<false, true>, double>();
+    std::cerr << "  NEON INEXACT ALIGNED DOUBLE (7/10)..." << std::endl;
+    UnitTestFunc<TNeonExp10<false, true>, TExp10Compare<false, true>, double>();
+    std::cerr << "  NEON EXACT UNALIGNED DOUBLE (8/10)..." << std::endl;
+    UnitTestFunc<TNeonExp10<true, false>, TExp10Compare<true, true>, double>();
+    std::cerr << "  NEON EXACT ALIGNED DOUBLE (9/10)..." << std::endl;
+    UnitTestFunc<TNeonExp10<true, true>, TExp10Compare<true, true>, double>();
+
+    std::cerr << "  BASELINE DOUBLE (10/10)..." << std::endl;
+    UnitTestFunc<TPlainExp10, TExp10Compare<true, true>, double>();
+#else
+    std::cerr << "  AVX2 INEXACT UNALIGNED FLOAT (1/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp10<false, false>, TExp10Compare<false, false>, float>();
+    std::cerr << "  AVX2 INEXACT ALIGNED FLOAT (2/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp10<false, true>, TExp10Compare<false, false>, float>();
+    std::cerr << "  AVX2 EXACT UNALIGNED FLOAT (3/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp10<true, false>, TExp10Compare<true, false>, float>();
+    std::cerr << "  AVX2 EXACT ALIGNED FLOAT (4/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp10<true, true>, TExp10Compare<true, false>, float>();
+
+    std::cerr << "  AVX INEXACT UNALIGNED FLOAT (5/18)..." << std::endl;
+    UnitTestFunc<TAvxExp10<false, false>, TExp10Compare<false, false>, float>();
+    std::cerr << "  AVX INEXACT ALIGNED FLOAT (6/18)..." << std::endl;
+    UnitTestFunc<TAvxExp10<false, true>, TExp10Compare<false, false>, float>();
+    std::cerr << "  AVX EXACT UNALIGNED FLOAT (7/18)..." << std::endl;
+    UnitTestFunc<TAvxExp10<true, false>, TExp10Compare<true, false>, float>();
+    std::cerr << "  AVX EXACT ALIGNED FLOAT (8/18)..." << std::endl;
+    UnitTestFunc<TAvxExp10<true, true>, TExp10Compare<true, false>, float>();
+
+    std::cerr << "  BASELINE FLOAT (9/18)..." << std::endl;
+    UnitTestFunc<TPlainExp10, TExp10Compare<true, false>, float>();
+
+    std::cerr << "  AVX2 INEXACT UNALIGNED DOUBLE (10/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp10<false, false>, TExp10Compare<false, true>, double>();
+    std::cerr << "  AVX2 INEXACT ALIGNED DOUBLE (11/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp10<false, true>, TExp10Compare<false, true>, double>();
+    std::cerr << "  AVX2 EXACT UNALIGNED DOUBLE (12/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp10<true, false>, TExp10Compare<true, true>, double>();
+    std::cerr << "  AVX2 EXACT ALIGNED DOUBLE (13/18)..." << std::endl;
+    UnitTestFunc<TAvx2Exp10<true, true>, TExp10Compare<true, true>, double>();
+
+    std::cerr << "  AVX INEXACT UNALIGNED DOUBLE (14/18)..." << std::endl;
+    UnitTestFunc<TAvxExp10<false, false>, TExp10Compare<false, true>, double>();
+    std::cerr << "  AVX INEXACT ALIGNED DOUBLE (15/18)..." << std::endl;
+    UnitTestFunc<TAvxExp10<false, true>, TExp10Compare<false, true>, double>();
+    std::cerr << "  AVX EXACT UNALIGNED DOUBLE (16/18)..." << std::endl;
+    UnitTestFunc<TAvxExp10<true, false>, TExp10Compare<true, true>, double>();
+    std::cerr << "  AVX EXACT ALIGNED DOUBLE (17/18)..." << std::endl;
+    UnitTestFunc<TAvxExp10<true, true>, TExp10Compare<true, true>, double>();
+
+    std::cerr << "  BASELINE DOUBLE (18/18)..." << std::endl;
+    UnitTestFunc<TPlainExp10, TExp10Compare<true, true>, double>();
+#endif
 }
 
 bool isneginf(double val) {
@@ -546,6 +972,7 @@ struct TLogCompare {
     }
 };
 
+#if !(defined(__aarch64__) || defined(__arm__))
 template <bool EXACT, bool ALIGNED>
 struct TAvx2Log {
     static constexpr bool Aligned = ALIGNED;
@@ -573,6 +1000,7 @@ struct TAvxLog {
         NFastOps::LogAvx<EXACT, ALIGNED>(from, size, to);
     }
 };
+#endif
 
 struct TPlainLog {
     static constexpr bool Aligned = false;
@@ -587,7 +1015,48 @@ struct TPlainLog {
     }
 };
 
+#if defined(__aarch64__) || defined(__arm__)
+template <bool EXACT, bool ALIGNED>
+struct TNeonLog {
+    static constexpr bool Aligned = ALIGNED;
+
+    static EFunc GetType() {
+        return EFunc::Log;
+    }
+
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::LogNeon<EXACT, ALIGNED>(from, size, to);
+    }
+};
+#endif
+
 void TestFastLog() {
+#if defined(__aarch64__) || defined(__arm__)
+    std::cerr << "  NEON INEXACT UNALIGNED FLOAT (1/10)..." << std::endl;
+    UnitTestFunc<TNeonLog<false, false>, TLogCompare<false, false>, float>();
+    std::cerr << "  NEON INEXACT ALIGNED FLOAT (2/10)..." << std::endl;
+    UnitTestFunc<TNeonLog<false, true>, TLogCompare<false, false>, float>();
+    std::cerr << "  NEON EXACT UNALIGNED FLOAT (3/10)..." << std::endl;
+    UnitTestFunc<TNeonLog<true, false>, TLogCompare<true, false>, float>();
+    std::cerr << "  NEON EXACT ALIGNED FLOAT (4/10)..." << std::endl;
+    UnitTestFunc<TNeonLog<true, true>, TLogCompare<true, false>, float>();
+
+    std::cerr << "  BASELINE FLOAT (5/10)..." << std::endl;
+    UnitTestFunc<TPlainLog, TLogCompare<true, false>, float>();
+
+    std::cerr << "  NEON INEXACT UNALIGNED DOUBLE (6/10)..." << std::endl;
+    UnitTestFunc<TNeonLog<false, false>, TLogCompare<false, true>, double>();
+    std::cerr << "  NEON INEXACT ALIGNED DOUBLE (7/10)..." << std::endl;
+    UnitTestFunc<TNeonLog<false, true>, TLogCompare<false, true>, double>();
+    std::cerr << "  NEON EXACT UNALIGNED DOUBLE (8/10)..." << std::endl;
+    UnitTestFunc<TNeonLog<true, false>, TLogCompare<true, true>, double>();
+    std::cerr << "  NEON EXACT ALIGNED DOUBLE (9/10)..." << std::endl;
+    UnitTestFunc<TNeonLog<true, true>, TLogCompare<true, true>, double>();
+
+    std::cerr << "  BASELINE DOUBLE (10/10)..." << std::endl;
+    UnitTestFunc<TPlainLog, TLogCompare<true, true>, double>();
+#else
     std::cerr << "  AVX2 INEXACT UNALIGNED FLOAT (1/18)..." << std::endl;
     UnitTestFunc<TAvx2Log<false, false>, TLogCompare<false, false>, float>();
     std::cerr << "  AVX2 INEXACT ALIGNED FLOAT (2/18)..." << std::endl;
@@ -629,6 +1098,7 @@ void TestFastLog() {
 
     std::cerr << "  BASELINE DOUBLE (18/18)..." << std::endl;
     UnitTestFunc<TPlainLog, TLogCompare<true, true>, double>();
+#endif
 }
 
 template <bool Exact, bool IsDouble>
@@ -682,6 +1152,7 @@ struct TSigmCompare {
     }
 };
 
+#if !(defined(__aarch64__) || defined(__arm__))
 template <bool EXACT, bool ALIGNED>
 struct TAvx2Sigm {
     static constexpr bool Aligned = ALIGNED;
@@ -709,6 +1180,7 @@ struct TAvxSigm {
         NFastOps::SigmoidAvx<EXACT, ALIGNED>(from, size, to);
     }
 };
+#endif
 
 struct TPlainSigm {
     static constexpr bool Aligned = false;
@@ -723,7 +1195,48 @@ struct TPlainSigm {
     }
 };
 
+#if defined(__aarch64__) || defined(__arm__)
+template <bool EXACT, bool ALIGNED>
+struct TNeonSigm {
+    static constexpr bool Aligned = ALIGNED;
+
+    static EFunc GetType() {
+        return EFunc::Sigmoid;
+    }
+
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::SigmoidNeon<EXACT, ALIGNED>(from, size, to);
+    }
+};
+#endif
+
 void TestFastSigm() {
+#if defined(__aarch64__) || defined(__arm__)
+    std::cerr << "  NEON INEXACT UNALIGNED FLOAT (1/10)..." << std::endl;
+    UnitTestFunc<TNeonSigm<false, false>, TSigmCompare<false, false>, float>();
+    std::cerr << "  NEON INEXACT ALIGNED FLOAT (2/10)..." << std::endl;
+    UnitTestFunc<TNeonSigm<false, true>, TSigmCompare<false, false>, float>();
+    std::cerr << "  NEON EXACT UNALIGNED FLOAT (3/10)..." << std::endl;
+    UnitTestFunc<TNeonSigm<true, false>, TSigmCompare<true, false>, float>();
+    std::cerr << "  NEON EXACT ALIGNED FLOAT (4/10)..." << std::endl;
+    UnitTestFunc<TNeonSigm<true, true>, TSigmCompare<true, false>, float>();
+
+    std::cerr << "  BASELINE FLOAT (5/10)..." << std::endl;
+    UnitTestFunc<TPlainSigm, TSigmCompare<true, false>, float>();
+
+    std::cerr << "  NEON INEXACT UNALIGNED DOUBLE (6/10)..." << std::endl;
+    UnitTestFunc<TNeonSigm<false, false>, TSigmCompare<false, true>, double>();
+    std::cerr << "  NEON INEXACT ALIGNED DOUBLE (7/10)..." << std::endl;
+    UnitTestFunc<TNeonSigm<false, true>, TSigmCompare<false, true>, double>();
+    std::cerr << "  NEON EXACT UNALIGNED DOUBLE (8/10)..." << std::endl;
+    UnitTestFunc<TNeonSigm<true, false>, TSigmCompare<true, true>, double>();
+    std::cerr << "  NEON EXACT ALIGNED DOUBLE (9/10)..." << std::endl;
+    UnitTestFunc<TNeonSigm<true, true>, TSigmCompare<true, true>, double>();
+
+    std::cerr << "  BASELINE DOUBLE (10/10)..." << std::endl;
+    UnitTestFunc<TPlainSigm, TSigmCompare<true, true>, double>();
+#else
     std::cerr << "  AVX2 INEXACT UNALIGNED FLOAT (1/18)..." << std::endl;
     UnitTestFunc<TAvx2Sigm<false, false>, TSigmCompare<false, false>, float>();
     std::cerr << "  AVX2 INEXACT ALIGNED FLOAT (2/18)..." << std::endl;
@@ -765,6 +1278,7 @@ void TestFastSigm() {
 
     std::cerr << "  BASELINE DOUBLE (18/18)..." << std::endl;
     UnitTestFunc<TPlainSigm, TSigmCompare<true, true>, double>();
+#endif
 }
 
 template <bool Exact, bool IsDouble>
@@ -884,6 +1398,7 @@ struct TTanhCompare {
     }
 };
 
+#if !(defined(__aarch64__) || defined(__arm__))
 template <bool EXACT, bool ALIGNED>
 struct TAvx2Tanh {
     static constexpr bool Aligned = ALIGNED;
@@ -911,6 +1426,7 @@ struct TAvxTanh {
         NFastOps::TanhAvx<EXACT, ALIGNED>(from, size, to);
     }
 };
+#endif
 
 struct TPlainTanh {
     static constexpr bool Aligned = false;
@@ -925,7 +1441,48 @@ struct TPlainTanh {
     }
 };
 
+#if defined(__aarch64__) || defined(__arm__)
+template <bool EXACT, bool ALIGNED>
+struct TNeonTanh {
+    static constexpr bool Aligned = ALIGNED;
+
+    static EFunc GetType() {
+        return EFunc::Tanh;
+    }
+
+    template <class T>
+    static void Apply(const T* from, size_t size, T* to) {
+        NFastOps::TanhNeon<EXACT, ALIGNED>(from, size, to);
+    }
+};
+#endif
+
 void TestFastTanh() {
+#if defined(__aarch64__) || defined(__arm__)
+    std::cerr << "  NEON INEXACT UNALIGNED FLOAT (1/10)..." << std::endl;
+    UnitTestFunc<TNeonTanh<false, false>, TTanhCompare<false, false>, float>();
+    std::cerr << "  NEON INEXACT ALIGNED FLOAT (2/10)..." << std::endl;
+    UnitTestFunc<TNeonTanh<false, true>, TTanhCompare<false, false>, float>();
+    std::cerr << "  NEON EXACT UNALIGNED FLOAT (3/10)..." << std::endl;
+    UnitTestFunc<TNeonTanh<true, false>, TTanhCompare<true, false>, float>();
+    std::cerr << "  NEON EXACT ALIGNED FLOAT (4/10)..." << std::endl;
+    UnitTestFunc<TNeonTanh<true, true>, TTanhCompare<true, false>, float>();
+
+    std::cerr << "  BASELINE FLOAT (5/10)..." << std::endl;
+    UnitTestFunc<TPlainTanh, TTanhCompare<true, false>, float>();
+
+    std::cerr << "  NEON INEXACT UNALIGNED DOUBLE (6/10)..." << std::endl;
+    UnitTestFunc<TNeonTanh<false, false>, TTanhCompare<false, true>, double>();
+    std::cerr << "  NEON INEXACT ALIGNED DOUBLE (7/10)..." << std::endl;
+    UnitTestFunc<TNeonTanh<false, true>, TTanhCompare<false, true>, double>();
+    std::cerr << "  NEON EXACT UNALIGNED DOUBLE (8/10)..." << std::endl;
+    UnitTestFunc<TNeonTanh<true, false>, TTanhCompare<true, true>, double>();
+    std::cerr << "  NEON EXACT ALIGNED DOUBLE (9/10)..." << std::endl;
+    UnitTestFunc<TNeonTanh<true, true>, TTanhCompare<true, true>, double>();
+
+    std::cerr << "  BASELINE DOUBLE (10/10)..." << std::endl;
+    UnitTestFunc<TPlainTanh, TTanhCompare<true, true>, double>();
+#else
     std::cerr << "  AVX2 INEXACT UNALIGNED FLOAT (1/18)..." << std::endl;
     UnitTestFunc<TAvx2Tanh<false, false>, TTanhCompare<false, false>, float>();
     std::cerr << "  AVX2 INEXACT ALIGNED FLOAT (2/18)..." << std::endl;
@@ -967,17 +1524,22 @@ void TestFastTanh() {
 
     std::cerr << "  BASELINE DOUBLE (18/18)..." << std::endl;
     UnitTestFunc<TPlainTanh, TTanhCompare<true, true>, double>();
+#endif
 }
 
 int main() {
     try {
-        std::cerr << "Testing exp (1/4)..." << std::endl;
+        std::cerr << "Testing exp (1/6)..." << std::endl;
         TestFastExp();
-        std::cerr << "Testing log (2/4)..." << std::endl;
+        std::cerr << "Testing exp2 (2/6)..." << std::endl;
+        TestFastExp2();
+        std::cerr << "Testing exp10 (3/6)..." << std::endl;
+        TestFastExp10();
+        std::cerr << "Testing log (4/6)..." << std::endl;
         TestFastLog();
-        std::cerr << "Testing sigm (3/4)..." << std::endl;
+        std::cerr << "Testing sigm (5/6)..." << std::endl;
         TestFastSigm();
-        std::cerr << "Testing tanh (4/4)..." << std::endl;
+        std::cerr << "Testing tanh (6/6)..." << std::endl;
         TestFastTanh();
         std::cerr << "All tests PASSED" << std::endl;
         return 0;

@@ -82,4 +82,44 @@ namespace NFastOps {
     template void TanhAvx2<false, true>(const double* from, size_t size, double* to);
     template void TanhAvx2<true, false>(const double* from, size_t size, double* to);
     template void TanhAvx2<true, true>(const double* from, size_t size, double* to);
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Exp2Avx2(const float* from, size_t size, float* to) {
+        NFastOps::AVXExp2<I_Exact, I_OutAligned>(from, size, to);
+    }
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Exp2Avx2(const double* from, size_t size, double* to) {
+        NFastOps::AVXExp2<I_Exact, I_OutAligned>(from, size, to);
+    }
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Exp10Avx2(const float* from, size_t size, float* to) {
+        NFastOps::AVXExp10<I_Exact, I_OutAligned>(from, size, to);
+    }
+
+    template <bool I_Exact, bool I_OutAligned>
+    void Exp10Avx2(const double* from, size_t size, double* to) {
+        NFastOps::AVXExp10<I_Exact, I_OutAligned>(from, size, to);
+    }
+
+    template void Exp2Avx2<false, false>(const float* from, size_t size, float* to);
+    template void Exp2Avx2<false, true>(const float* from, size_t size, float* to);
+    template void Exp2Avx2<true, false>(const float* from, size_t size, float* to);
+    template void Exp2Avx2<true, true>(const float* from, size_t size, float* to);
+
+    template void Exp2Avx2<false, false>(const double* from, size_t size, double* to);
+    template void Exp2Avx2<false, true>(const double* from, size_t size, double* to);
+    template void Exp2Avx2<true, false>(const double* from, size_t size, double* to);
+    template void Exp2Avx2<true, true>(const double* from, size_t size, double* to);
+
+    template void Exp10Avx2<false, false>(const float* from, size_t size, float* to);
+    template void Exp10Avx2<false, true>(const float* from, size_t size, float* to);
+    template void Exp10Avx2<true, false>(const float* from, size_t size, float* to);
+    template void Exp10Avx2<true, true>(const float* from, size_t size, float* to);
+
+    template void Exp10Avx2<false, false>(const double* from, size_t size, double* to);
+    template void Exp10Avx2<false, true>(const double* from, size_t size, double* to);
+    template void Exp10Avx2<true, false>(const double* from, size_t size, double* to);
+    template void Exp10Avx2<true, true>(const double* from, size_t size, double* to);
 }

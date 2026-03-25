@@ -10,6 +10,8 @@
 #include <cstring>
 #include <type_traits>
 
+#define FASTOPS_MAX_REG_WIDTH 32
+
 #pragma warning(push)
 #pragma warning(disable : 4100)
 
@@ -50,8 +52,12 @@ namespace NFastOps {
 
     namespace NFastOpsDetail {
         template <size_t I_ElementSize>
+        struct S_ConstantsArch;
+
+        template <size_t I_ElementSize>
         struct S_Constants;
 
+#ifdef FASTOPS_X86
         static inline constexpr __m256 constexpr_mm256_set1_ps(float f) {
 #if defined(_MSC_VER)
             return {f, f, f, f, f, f, f, f};
@@ -115,144 +121,192 @@ namespace NFastOps {
         static inline constexpr auto constexpr_mm256_castpd_si256 = [](__m256d x) {return _mm256_castpd_si256(x);};
 
         template <>
-        struct S_Constants<4> {
-
-            // Some constexpr workarounds for gcc, clang and msvc.
+        struct S_ConstantsArch<4> {
             using Source = float;
             using Target = int;
             static constexpr auto Set1 = constexpr_mm256_set1_ps;
+            static constexpr auto Set1Int = constexpr_mm256_set1_epi32;
             static constexpr auto CastSi = constexpr_mm256_castsi256_ps;
             static constexpr auto CastPf = constexpr_mm256_castps_si256;
-
-            static constexpr __m256 c1h = Set1(4.901290717342735958569508618176166906457e-1f);
-            static constexpr __m256 c1t_plus_c0t = Set1(-1.213203435596425732025330863145471178545e-1f);
-            static constexpr __m256 c1h_by_c0t_minus_c2h = Set1(-1.039720770839917964125848182187264852113f);
-            static constexpr __m256 c_ln_range_threshold = Set1(7.071067811865475244008443621048490392848e-1f);
-
-            static constexpr __m256 c_ln7_c0 = Set1(3.274046088544186271578736717276955126405e-1f);
-            static constexpr __m256 c_ln7_c1 = Set1(-2.460077318856183503930805541364448494063e-1f);
-            static constexpr __m256 c_ln7_c2 = Set1(1.969693180733211157137504487566098634881e-1f);
-            static constexpr __m256 c_ln7_c3 = Set1(-1.667744330973693530308560275865086463950e-1f);
-            static constexpr __m256 c_ln7_c4 = Set1(1.510576765737534749447874102473717073429e-1f);
-            static constexpr __m256 c_ln7_c5 = Set1(-1.017552258241698935203275142363246158437e-1f);
-
-            static constexpr __m256 c_ln5_c0 = Set1(3.273555858564201849484689435773550727008e-1f);
-            static constexpr __m256 c_ln5_c1 = Set1(-2.469326754162029197824769224764207256300e-1f);
-            static constexpr __m256 c_ln5_c2 = Set1(2.050803141348481033461102938420647618561e-1f);
-            static constexpr __m256 c_ln5_c3 = Set1(-1.441145595397930709104807611354899546141e-1f);
-
-            static constexpr __m256 c_pow2_4_c0 = Set1(-3.068529675993459480848426056697043817499e-1f);
-            static constexpr __m256 c_pow2_4_c1 = Set1(-6.662345431318903025772700509142101007024e-2f);
-            static constexpr __m256 c_pow2_4_c2 = Set1(-1.113930183733997141783833210977614459718e-2f);
-            static constexpr __m256 c_pow2_4_c3 = Set1(-1.461237960055165634948236381176861135936e-3f);
-            static constexpr __m256 c_pow2_4_c4 = Set1(-2.171502549397975884526363201015788921121e-4f);
-
-            static constexpr __m256 c_pow2_2_c0 = Set1(-3.069678791803394491901405992213472390777e-1f);
-            static constexpr __m256 c_pow2_2_c1 = Set1(-6.558811624324781017147952441210509604385e-2f);
-            static constexpr __m256 c_pow2_2_c2 = Set1(-1.355574723481491770403079319055785445381e-2f);
-
-            static constexpr __m256 c_half_f = Set1(0.5f);
-            static constexpr __m256 c_1_f = Set1(1.f);
-            static constexpr __m256 c_2_f = Set1(2.f);
-            static constexpr __m256 c_1_over_ln_2 = Set1(1.442695040888963407359924681001892137426f);
-            static constexpr __m256 c_neg_1_over_ln_2 = Set1(-1.442695040888963407359924681001892137426f);
-            static constexpr __m256 c_neg_2_over_ln_2 = Set1(float(-2. * 1.442695040888963407359924681001892137426));
-
-            static constexpr __m256 c_ln_2 = Set1(6.931471805599453094172321214581765680755e-1f);
-            static constexpr __m256i c_denorm_const = constexpr_mm256_set1_epi32(127);
-            static constexpr __m256 c_inf_i = Set1(std::numeric_limits<float>::infinity());
-            static constexpr __m256i c_all_ones = constexpr_mm256_set1_epi32(-1);
-            static constexpr __m256i c_mantissa_mask = constexpr_mm256_set1_epi32(int(0x00'7F'FF'FF));
-
-            static constexpr __m256 c_max_pow_2 = Set1(128.f);
-            static constexpr __m256 c_min_denorm_exp_f = Set1(-150.f);
-            static constexpr __m256 c_min_norm_exp_f = Set1(-127.f);
-            static constexpr __m256i c_denorm_offset = constexpr_mm256_set1_epi32(-126);
-
-            static constexpr int ci_bits_in_mantissa = 23;
-            static constexpr int ci_denorm_const = (ci_bits_in_mantissa + 127) << ci_bits_in_mantissa;
-            static constexpr __m256 c_neg_f_bits_in_mantissa = Set1(-float(ci_bits_in_mantissa));
-            static constexpr __m256 c_neg_f_infinity = Set1(-std::numeric_limits<float>::infinity());
-            static constexpr __m256 c_neg_f_zero = Set1(-0.f);
         };
 
         template <>
-        struct S_Constants<8> {
-
-            // Some constexpr workarounds for gcc, clang and msvc.
+        struct S_ConstantsArch<8> {
             using Source = double;
             using Target = size_t;
             static constexpr auto Set1 = constexpr_mm256_set1_pd;
+            static constexpr auto Set1Int = constexpr_mm256_set1_epi64x;
             static constexpr auto CastSi = constexpr_mm256_castsi256_pd;
             static constexpr auto CastPf = constexpr_mm256_castpd_si256;
+        };
 
-            static constexpr __m256d c1h = Set1(4.901290717342735958569508618176166906457e-1);
-            static constexpr __m256d c1t_plus_c0t = Set1(-1.213203435596425732025330863145471178545e-1);
-            static constexpr __m256d c1h_by_c0t_minus_c2h = Set1(-1.039720770839917964125848182187264852113);
-            static constexpr __m256d c_ln_range_threshold = Set1(7.071067811865475244008443621048490392848e-1);
+#elif defined(FASTOPS_ARM64)
+        static inline constexpr float32x4_t constexpr_vdupq_n_f32(float f) {
+            return (float32x4_t){f, f, f, f};
+        }
+        static inline constexpr float64x2_t constexpr_vdupq_n_f64(double d) {
+            return (float64x2_t){d, d};
+        }
+        static inline constexpr int32x4_t constexpr_vdupq_n_s32(int i) {
+            return (int32x4_t){i, i, i, i};
+        }
+        static inline constexpr int64x2_t constexpr_vdupq_n_s64(long long l) {
+            return (int64x2_t){l, l};
+        }
 
-            static constexpr __m256d c_ln9_c0 = Set1(3.274040414833276642293935648031820904022e-1);
-            static constexpr __m256d c_ln9_c1 = Set1(-2.460426108817215117479709510818728283515e-1);
-            static constexpr __m256d c_ln9_c2 = Set1(1.971705651171856040168275563322538385840e-1);
-            static constexpr __m256d c_ln9_c3 = Set1(-1.644082698894967400206460910619729462729e-1);
-            static constexpr __m256d c_ln9_c4 = Set1(1.408917636407928535073460571984541868931e-1);
-            static constexpr __m256d c_ln9_c5 = Set1(-1.273228141550318878611668315296447653434e-1);
-            static constexpr __m256d c_ln9_c6 = Set1(1.205275963912385751945799850342567301852e-1);
-            static constexpr __m256d c_ln9_c7 = Set1(-7.664829052466830813429918673961725340730e-2);
+        static inline constexpr auto constexpr_vreinterpretq_f32_s32 = [](int32x4_t x) { return vreinterpretq_f32_s32(x); };
+        static inline constexpr auto constexpr_vreinterpretq_s32_f32 = [](float32x4_t x) { return vreinterpretq_s32_f32(x); };
+        static inline constexpr auto constexpr_vreinterpretq_f64_s64 = [](int64x2_t x) { return vreinterpretq_f64_s64(x); };
+        static inline constexpr auto constexpr_vreinterpretq_s64_f64 = [](float64x2_t x) { return vreinterpretq_s64_f64(x); };
 
-            static constexpr __m256d c_ln7_c0 = Set1(3.274046088544186271578736717276955126405e-1);
-            static constexpr __m256d c_ln7_c1 = Set1(-2.460077318856183503930805541364448494063e-1);
-            static constexpr __m256d c_ln7_c2 = Set1(1.969693180733211157137504487566098634881e-1);
-            static constexpr __m256d c_ln7_c3 = Set1(-1.667744330973693530308560275865086463950e-1);
-            static constexpr __m256d c_ln7_c4 = Set1(1.510576765737534749447874102473717073429e-1);
-            static constexpr __m256d c_ln7_c5 = Set1(-1.017552258241698935203275142363246158437e-1);
+        template <>
+        struct S_ConstantsArch<4> {
+            using Source = float;
+            using Target = int;
+            static constexpr auto Set1 = constexpr_vdupq_n_f32;
+            static constexpr auto Set1Int = constexpr_vdupq_n_s32;
+            static constexpr auto CastSi = constexpr_vreinterpretq_f32_s32;
+            static constexpr auto CastPf = constexpr_vreinterpretq_s32_f32;
+        };
 
-            static constexpr __m256d c_ln5_c0 = Set1(3.273555858564201849484689435773550727008e-1);
-            static constexpr __m256d c_ln5_c1 = Set1(-2.469326754162029197824769224764207256300e-1);
-            static constexpr __m256d c_ln5_c2 = Set1(2.050803141348481033461102938420647618561e-1);
-            static constexpr __m256d c_ln5_c3 = Set1(-1.441145595397930709104807611354899546141e-1);
+        template <>
+        struct S_ConstantsArch<8> {
+            using Source = double;
+            using Target = size_t;
+            static constexpr auto Set1 = constexpr_vdupq_n_f64;
+            static constexpr auto Set1Int = constexpr_vdupq_n_s64;
+            static constexpr auto CastSi = constexpr_vreinterpretq_f64_s64;
+            static constexpr auto CastPf = constexpr_vreinterpretq_s64_f64;
+        };
 
-            static constexpr __m256d c_pow2_6_c0 = Set1(-3.068528195372368372826179618775428072217e-1);
-            static constexpr __m256d c_pow2_6_c1 = Set1(-6.662630929237755210810414038195547289735e-2);
-            static constexpr __m256d c_pow2_6_c2 = Set1(-1.112223817301083258745885554952494883219e-2);
-            static constexpr __m256d c_pow2_6_c3 = Set1(-1.503903566909095368304539146883327192756e-3);
-            static constexpr __m256d c_pow2_6_c4 = Set1(-1.711643253068146019790027094116090970622e-4);
-            static constexpr __m256d c_pow2_6_c5 = Set1(-1.606218523854454480443664688362539746237e-5);
-            static constexpr __m256d c_pow2_6_c6 = Set1(-1.863870613873008492165005750904674527977e-6);
+#endif // FASTOPS_X86 / FASTOPS_ARM64
 
-            static constexpr __m256d c_pow2_4_c0 = Set1(-3.068529675993459480848426056697043817499e-1);
-            static constexpr __m256d c_pow2_4_c1 = Set1(-6.662345431318903025772700509142101007024e-2);
-            static constexpr __m256d c_pow2_4_c2 = Set1(-1.113930183733997141783833210977614459718e-2);
-            static constexpr __m256d c_pow2_4_c3 = Set1(-1.461237960055165634948236381176861135936e-3);
-            static constexpr __m256d c_pow2_4_c4 = Set1(-2.171502549397975884526363201015788921121e-4);
+        // Mathematical constants — identical values on all architectures, types deduced via auto.
+        template <>
+        struct S_Constants<4> : S_ConstantsArch<4> {
+            static constexpr auto c1h = Set1(4.901290717342735958569508618176166906457e-1f);
+            static constexpr auto c1t_plus_c0t = Set1(-1.213203435596425732025330863145471178545e-1f);
+            static constexpr auto c1h_by_c0t_minus_c2h = Set1(-1.039720770839917964125848182187264852113f);
+            static constexpr auto c_ln_range_threshold = Set1(7.071067811865475244008443621048490392848e-1f);
 
-            static constexpr __m256d c_pow2_2_c0 = Set1(-3.069678791803394491901405992213472390777e-1);
-            static constexpr __m256d c_pow2_2_c1 = Set1(-6.558811624324781017147952441210509604385e-2);
-            static constexpr __m256d c_pow2_2_c2 = Set1(-1.355574723481491770403079319055785445381e-2);
+            static constexpr auto c_ln7_c0 = Set1(3.274046088544186271578736717276955126405e-1f);
+            static constexpr auto c_ln7_c1 = Set1(-2.460077318856183503930805541364448494063e-1f);
+            static constexpr auto c_ln7_c2 = Set1(1.969693180733211157137504487566098634881e-1f);
+            static constexpr auto c_ln7_c3 = Set1(-1.667744330973693530308560275865086463950e-1f);
+            static constexpr auto c_ln7_c4 = Set1(1.510576765737534749447874102473717073429e-1f);
+            static constexpr auto c_ln7_c5 = Set1(-1.017552258241698935203275142363246158437e-1f);
 
-            static constexpr __m256d c_half_f = Set1(0.5);
-            static constexpr __m256d c_1_f = Set1(1.);
-            static constexpr __m256d c_2_f = Set1(2.);
-            static constexpr __m256d c_1_over_ln_2 = Set1(1.442695040888963407359924681001892137426);
-            static constexpr __m256d c_neg_1_over_ln_2 = Set1(-1.442695040888963407359924681001892137426);
-            static constexpr __m256d c_neg_2_over_ln_2 = Set1(-2. * 1.442695040888963407359924681001892137426);
+            static constexpr auto c_ln5_c0 = Set1(3.273555858564201849484689435773550727008e-1f);
+            static constexpr auto c_ln5_c1 = Set1(-2.469326754162029197824769224764207256300e-1f);
+            static constexpr auto c_ln5_c2 = Set1(2.050803141348481033461102938420647618561e-1f);
+            static constexpr auto c_ln5_c3 = Set1(-1.441145595397930709104807611354899546141e-1f);
 
-            static constexpr __m256d c_ln_2 = Set1(6.931471805599453094172321214581765680755e-1);
-            static constexpr __m256i c_denorm_const = constexpr_mm256_set1_epi64x(1023);
-            static constexpr __m256d c_inf_i = Set1(std::numeric_limits<double>::infinity());
-            static constexpr __m256i c_all_ones = constexpr_mm256_set1_epi64x(-1);
-            static constexpr __m256i c_mantissa_mask = constexpr_mm256_set1_epi64x(int64_t(0x00'0F'FF'FF'FF'FF'FF'FF));
+            static constexpr auto c_pow2_4_c0 = Set1(-3.068529675993459480848426056697043817499e-1f);
+            static constexpr auto c_pow2_4_c1 = Set1(-6.662345431318903025772700509142101007024e-2f);
+            static constexpr auto c_pow2_4_c2 = Set1(-1.113930183733997141783833210977614459718e-2f);
+            static constexpr auto c_pow2_4_c3 = Set1(-1.461237960055165634948236381176861135936e-3f);
+            static constexpr auto c_pow2_4_c4 = Set1(-2.171502549397975884526363201015788921121e-4f);
 
-            static constexpr __m256d c_max_pow_2 = Set1(1024.);
-            static constexpr __m256d c_min_denorm_exp_f = Set1(-1075.);
-            static constexpr __m256d c_min_norm_exp_f = Set1(-1023.);
-            static constexpr __m256i c_denorm_offset = constexpr_mm256_set1_epi64x(-1022);
+            static constexpr auto c_pow2_2_c0 = Set1(-3.069678791803394491901405992213472390777e-1f);
+            static constexpr auto c_pow2_2_c1 = Set1(-6.558811624324781017147952441210509604385e-2f);
+            static constexpr auto c_pow2_2_c2 = Set1(-1.355574723481491770403079319055785445381e-2f);
+
+            static constexpr auto c_half_f = Set1(0.5f);
+            static constexpr auto c_1_f = Set1(1.f);
+            static constexpr auto c_2_f = Set1(2.f);
+            static constexpr auto c_1_over_ln_2 = Set1(1.442695040888963407359924681001892137426f);
+            static constexpr auto c_neg_1_over_ln_2 = Set1(-1.442695040888963407359924681001892137426f);
+            static constexpr auto c_neg_2_over_ln_2 = Set1(float(-2. * 1.442695040888963407359924681001892137426));
+            static constexpr auto c_log2_10 = Set1(3.321928094887362347870319429489390175865f);
+
+            static constexpr auto c_ln_2 = Set1(6.931471805599453094172321214581765680755e-1f);
+            static constexpr auto c_denorm_const = Set1Int(127);
+            static constexpr auto c_inf_i = Set1(std::numeric_limits<float>::infinity());
+            static constexpr auto c_all_ones = Set1Int(-1);
+            static constexpr auto c_mantissa_mask = Set1Int(int(0x00'7F'FF'FF));
+
+            static constexpr auto c_max_pow_2 = Set1(128.f);
+            static constexpr auto c_min_denorm_exp_f = Set1(-150.f);
+            static constexpr auto c_min_norm_exp_f = Set1(-127.f);
+            static constexpr auto c_denorm_offset = Set1Int(-126);
+
+            static constexpr int ci_bits_in_mantissa = 23;
+            static constexpr int ci_denorm_const = (ci_bits_in_mantissa + 127) << ci_bits_in_mantissa;
+            static constexpr auto c_neg_f_bits_in_mantissa = Set1(-float(ci_bits_in_mantissa));
+            static constexpr auto c_neg_f_infinity = Set1(-std::numeric_limits<float>::infinity());
+            static constexpr auto c_neg_f_zero = Set1(-0.f);
+        };
+
+        template <>
+        struct S_Constants<8> : S_ConstantsArch<8> {
+            static constexpr auto c1h = Set1(4.901290717342735958569508618176166906457e-1);
+            static constexpr auto c1t_plus_c0t = Set1(-1.213203435596425732025330863145471178545e-1);
+            static constexpr auto c1h_by_c0t_minus_c2h = Set1(-1.039720770839917964125848182187264852113);
+            static constexpr auto c_ln_range_threshold = Set1(7.071067811865475244008443621048490392848e-1);
+
+            static constexpr auto c_ln9_c0 = Set1(3.274040414833276642293935648031820904022e-1);
+            static constexpr auto c_ln9_c1 = Set1(-2.460426108817215117479709510818728283515e-1);
+            static constexpr auto c_ln9_c2 = Set1(1.971705651171856040168275563322538385840e-1);
+            static constexpr auto c_ln9_c3 = Set1(-1.644082698894967400206460910619729462729e-1);
+            static constexpr auto c_ln9_c4 = Set1(1.408917636407928535073460571984541868931e-1);
+            static constexpr auto c_ln9_c5 = Set1(-1.273228141550318878611668315296447653434e-1);
+            static constexpr auto c_ln9_c6 = Set1(1.205275963912385751945799850342567301852e-1);
+            static constexpr auto c_ln9_c7 = Set1(-7.664829052466830813429918673961725340730e-2);
+
+            static constexpr auto c_ln7_c0 = Set1(3.274046088544186271578736717276955126405e-1);
+            static constexpr auto c_ln7_c1 = Set1(-2.460077318856183503930805541364448494063e-1);
+            static constexpr auto c_ln7_c2 = Set1(1.969693180733211157137504487566098634881e-1);
+            static constexpr auto c_ln7_c3 = Set1(-1.667744330973693530308560275865086463950e-1);
+            static constexpr auto c_ln7_c4 = Set1(1.510576765737534749447874102473717073429e-1);
+            static constexpr auto c_ln7_c5 = Set1(-1.017552258241698935203275142363246158437e-1);
+
+            static constexpr auto c_ln5_c0 = Set1(3.273555858564201849484689435773550727008e-1);
+            static constexpr auto c_ln5_c1 = Set1(-2.469326754162029197824769224764207256300e-1);
+            static constexpr auto c_ln5_c2 = Set1(2.050803141348481033461102938420647618561e-1);
+            static constexpr auto c_ln5_c3 = Set1(-1.441145595397930709104807611354899546141e-1);
+
+            static constexpr auto c_pow2_6_c0 = Set1(-3.068528195372368372826179618775428072217e-1);
+            static constexpr auto c_pow2_6_c1 = Set1(-6.662630929237755210810414038195547289735e-2);
+            static constexpr auto c_pow2_6_c2 = Set1(-1.112223817301083258745885554952494883219e-2);
+            static constexpr auto c_pow2_6_c3 = Set1(-1.503903566909095368304539146883327192756e-3);
+            static constexpr auto c_pow2_6_c4 = Set1(-1.711643253068146019790027094116090970622e-4);
+            static constexpr auto c_pow2_6_c5 = Set1(-1.606218523854454480443664688362539746237e-5);
+            static constexpr auto c_pow2_6_c6 = Set1(-1.863870613873008492165005750904674527977e-6);
+
+            static constexpr auto c_pow2_4_c0 = Set1(-3.068529675993459480848426056697043817499e-1);
+            static constexpr auto c_pow2_4_c1 = Set1(-6.662345431318903025772700509142101007024e-2);
+            static constexpr auto c_pow2_4_c2 = Set1(-1.113930183733997141783833210977614459718e-2);
+            static constexpr auto c_pow2_4_c3 = Set1(-1.461237960055165634948236381176861135936e-3);
+            static constexpr auto c_pow2_4_c4 = Set1(-2.171502549397975884526363201015788921121e-4);
+
+            static constexpr auto c_pow2_2_c0 = Set1(-3.069678791803394491901405992213472390777e-1);
+            static constexpr auto c_pow2_2_c1 = Set1(-6.558811624324781017147952441210509604385e-2);
+            static constexpr auto c_pow2_2_c2 = Set1(-1.355574723481491770403079319055785445381e-2);
+
+            static constexpr auto c_half_f = Set1(0.5);
+            static constexpr auto c_1_f = Set1(1.);
+            static constexpr auto c_2_f = Set1(2.);
+            static constexpr auto c_1_over_ln_2 = Set1(1.442695040888963407359924681001892137426);
+            static constexpr auto c_neg_1_over_ln_2 = Set1(-1.442695040888963407359924681001892137426);
+            static constexpr auto c_neg_2_over_ln_2 = Set1(-2. * 1.442695040888963407359924681001892137426);
+            static constexpr auto c_log2_10 = Set1(3.321928094887362347870319429489390175865);
+
+            static constexpr auto c_ln_2 = Set1(6.931471805599453094172321214581765680755e-1);
+            static constexpr auto c_denorm_const = Set1Int(1023);
+            static constexpr auto c_inf_i = Set1(std::numeric_limits<double>::infinity());
+            static constexpr auto c_all_ones = Set1Int(-1);
+            static constexpr auto c_mantissa_mask = Set1Int(int64_t(0x00'0F'FF'FF'FF'FF'FF'FF));
+
+            static constexpr auto c_max_pow_2 = Set1(1024.);
+            static constexpr auto c_min_denorm_exp_f = Set1(-1075.);
+            static constexpr auto c_min_norm_exp_f = Set1(-1023.);
+            static constexpr auto c_denorm_offset = Set1Int(-1022);
 
             static constexpr int ci_bits_in_mantissa = 52;
             static constexpr size_t ci_denorm_const = size_t(ci_bits_in_mantissa + 1023) << ci_bits_in_mantissa;
-            static constexpr __m256d c_neg_f_bits_in_mantissa = Set1(-double(ci_bits_in_mantissa));
-            static constexpr __m256d c_neg_f_infinity = Set1(-std::numeric_limits<double>::infinity());
-            static constexpr __m256d c_neg_f_zero = Set1(-0.f);
+            static constexpr auto c_neg_f_bits_in_mantissa = Set1(-double(ci_bits_in_mantissa));
+            static constexpr auto c_neg_f_infinity = Set1(-std::numeric_limits<double>::infinity());
+            static constexpr auto c_neg_f_zero = Set1(-0.f);
         };
     }
 
@@ -361,7 +415,7 @@ namespace NFastOps {
     //It seems reads are translated into the unaligned instructions, even for the aligned intrinsics, so only leaving the customization for the output alignment
     struct S_MemCpyPerformer {
         enum : size_t {
-            c_max_register_width = 32
+            c_max_register_width = FASTOPS_MAX_REG_WIDTH
         };
 
         enum : size_t {
@@ -369,7 +423,7 @@ namespace NFastOps {
         };
         template <size_t I_BatchSize, bool I_Int, bool I_OutAligned>
         FORCE_INLINE void Run(const void* from, void* to) const noexcept {
-            static_assert(I_BatchSize <= 32 && HighestPowerOf2(I_BatchSize) == I_BatchSize, "Only small power of 2 supported");
+            static_assert(I_BatchSize <= FASTOPS_MAX_REG_WIDTH && HighestPowerOf2(I_BatchSize) == I_BatchSize, "Only small power of 2 supported");
             if constexpr (I_Int) {
                 if constexpr (I_BatchSize == 0)
                     ;
@@ -382,15 +436,25 @@ namespace NFastOps {
                 else if constexpr (I_BatchSize == 8)
                     *((int64_t*)to) = *((int64_t*)from);
                 else if constexpr (I_BatchSize == 16) {
+#ifdef FASTOPS_X86
                     if constexpr (I_OutAligned)
                         _mm_store_si128((__m128i*)(to), _mm_loadu_si128((const __m128i*)(from)));
                     else
                         _mm_storeu_si128((__m128i*)(to), _mm_loadu_si128((const __m128i*)(from)));
-                } else if constexpr (I_BatchSize == 32) {
+#elif defined(FASTOPS_ARM64)
+                    vst1q_u8((uint8_t*)to, vld1q_u8((const uint8_t*)from));
+#endif
+                }
+                else if constexpr (I_BatchSize == 32) {
+#ifdef FASTOPS_X86
                     if constexpr (I_OutAligned)
                         _mm256_store_si256((__m256i*)(to), _mm256_loadu_si256((const __m256i*)(from)));
                     else
                         _mm256_storeu_si256((__m256i*)(to), _mm256_loadu_si256((const __m256i*)(from)));
+#elif defined(FASTOPS_ARM64)
+                    vst1q_u8((uint8_t*)to, vld1q_u8((const uint8_t*)from));
+                    vst1q_u8((uint8_t*)to + 16, vld1q_u8((const uint8_t*)from + 16));
+#endif
                 }
             } else {
                 if constexpr (I_BatchSize == 0)
@@ -400,15 +464,25 @@ namespace NFastOps {
                 else if constexpr (I_BatchSize == 8)
                     *((double*)to) = *((double*)from);
                 else if constexpr (I_BatchSize == 16) {
+#ifdef FASTOPS_X86
                     if constexpr (I_OutAligned)
                         _mm_store_ps((float*)(to), _mm_loadu_ps((const float*)(from)));
                     else
                         _mm_storeu_ps((float*)(to), _mm_loadu_ps((const float*)(from)));
-                } else if constexpr (I_BatchSize == 32) {
+#elif defined(FASTOPS_ARM64)
+                    vst1q_f32((float*)to, vld1q_f32((const float*)from));
+#endif
+                }
+                else if constexpr (I_BatchSize == 32) {
+#ifdef FASTOPS_X86
                     if constexpr (I_OutAligned)
                         _mm256_store_ps((float*)(to), _mm256_loadu_ps((const float*)(from)));
                     else
                         _mm256_storeu_ps((float*)(to), _mm256_loadu_ps((const float*)(from)));
+#elif defined(FASTOPS_ARM64)
+                    vst1q_f32((float*)to, vld1q_f32((const float*)from));
+                    vst1q_f32((float*)to + 4, vld1q_f32((const float*)from + 4));
+#endif
                 }
             }
         }
@@ -418,55 +492,105 @@ namespace NFastOps {
 
     struct S_MemSetPerformer {
         enum : size_t {
-            c_max_register_width = 32
+            c_max_register_width = FASTOPS_MAX_REG_WIDTH
         };
 
         enum : size_t {
             c_batch_size = 512
         };
 
+#ifdef FASTOPS_X86
+        using t_val = __m256i;
+#elif defined(FASTOPS_ARM64)
+        using t_val = uint8x16_t;
+#endif
+
         template <size_t I_BatchSize, bool I_Int, bool I_OutAligned>
-        FORCE_INLINE void Run(const void*, void* to, const __m256i val) const noexcept {
-            static_assert(I_BatchSize <= 32 && HighestPowerOf2(I_BatchSize) == I_BatchSize, "Only small power of 2 supported");
+        FORCE_INLINE void Run(const void*, void* to, const t_val val) const noexcept {
+            static_assert(I_BatchSize <= FASTOPS_MAX_REG_WIDTH && HighestPowerOf2(I_BatchSize) == I_BatchSize, "Only small power of 2 supported");
             if constexpr (I_Int) {
                 if constexpr (I_BatchSize == 0)
                     ;
                 else if constexpr (I_BatchSize == 1)
+#ifdef FASTOPS_X86
                     *(int8_t*)(to) = (int8_t)(_mm_cvtsi128_si32(_mm256_castsi256_si128(val)) & 255);
-                else if constexpr (I_BatchSize == 2)
+#elif defined(FASTOPS_ARM64)
+                    *(int8_t*)(to) = (int8_t)vgetq_lane_u8(val, 0);
+#endif
+                else if constexpr (I_BatchSize == 2) {
+#ifdef FASTOPS_X86
                     _mm_storeu_si16((__m128i*)(to), _mm256_castsi256_si128(val));
-                else if constexpr (I_BatchSize == 4)
+#elif defined(FASTOPS_ARM64)
+                    std::memcpy(to, &val, 2);
+#endif
+                } else if constexpr (I_BatchSize == 4) {
+#ifdef FASTOPS_X86
                     _mm_storeu_si32((__m128i*)(to), _mm256_castsi256_si128(val));
-                else if constexpr (I_BatchSize == 8)
+#elif defined(FASTOPS_ARM64)
+                    vst1q_lane_u32((uint32_t*)to, vreinterpretq_u32_u8(val), 0);
+#endif
+                } else if constexpr (I_BatchSize == 8) {
+#ifdef FASTOPS_X86
                     _mm_storeu_si64((__m128i*)(to), _mm256_castsi256_si128(val));
-                else if constexpr (I_BatchSize == 16) {
+#elif defined(FASTOPS_ARM64)
+                    vst1_u8((uint8_t*)to, vget_low_u8(val));
+#endif
+                } else if constexpr (I_BatchSize == 16) {
+#ifdef FASTOPS_X86
                     if constexpr (I_OutAligned)
                         _mm_store_si128((__m128i*)(to), _mm256_castsi256_si128(val));
                     else
                         _mm_storeu_si128((__m128i*)(to), _mm256_castsi256_si128(val));
-                } else if constexpr (I_BatchSize == 32) {
+#elif defined(FASTOPS_ARM64)
+                    vst1q_u8((uint8_t*)to, val);
+#endif
+                }
+                else if constexpr (I_BatchSize == 32) {
+#ifdef FASTOPS_X86
                     if constexpr (I_OutAligned)
                         _mm256_store_si256((__m256i*)(to), val);
                     else
                         _mm256_storeu_si256((__m256i*)(to), val);
+#elif defined(FASTOPS_ARM64)
+                    vst1q_u8((uint8_t*)to, val);
+                    vst1q_u8((uint8_t*)to + 16, val);
+#endif
                 }
             } else {
                 if constexpr (I_BatchSize == 0)
                     ;
-                else if constexpr (I_BatchSize == 4)
+                else if constexpr (I_BatchSize == 4) {
+#ifdef FASTOPS_X86
                     _mm_store_ss((float*)(to), _mm256_castps256_ps128(_mm256_castsi256_ps(val)));
-                else if constexpr (I_BatchSize == 8)
+#elif defined(FASTOPS_ARM64)
+                    vst1q_lane_f32((float*)to, vreinterpretq_f32_u8(val), 0);
+#endif
+                } else if constexpr (I_BatchSize == 8) {
+#ifdef FASTOPS_X86
                     _mm_store_sd((double*)(to), _mm256_castpd256_pd128(_mm256_castsi256_pd(val)));
-                else if constexpr (I_BatchSize == 16) {
+#elif defined(FASTOPS_ARM64)
+                    vst1q_lane_f64((double*)to, vreinterpretq_f64_u8(val), 0);
+#endif
+                } else if constexpr (I_BatchSize == 16) {
+#ifdef FASTOPS_X86
                     if constexpr (I_OutAligned)
                         _mm_store_ps((float*)(to), _mm256_castps256_ps128(_mm256_castsi256_ps(val)));
                     else
                         _mm_storeu_ps((float*)(to), _mm256_castps256_ps128(_mm256_castsi256_ps(val)));
-                } else if constexpr (I_BatchSize == 32) {
+#elif defined(FASTOPS_ARM64)
+                    vst1q_u8((uint8_t*)to, val);
+#endif
+                }
+                else if constexpr (I_BatchSize == 32) {
+#ifdef FASTOPS_X86
                     if constexpr (I_OutAligned)
                         _mm256_store_ps((float*)(to), _mm256_castsi256_ps(val));
                     else
                         _mm256_storeu_ps((float*)(to), _mm256_castsi256_ps(val));
+#elif defined(FASTOPS_ARM64)
+                    vst1q_u8((uint8_t*)to, val);
+                    vst1q_u8((uint8_t*)to + 16, val);
+#endif
                 }
             }
         }
@@ -477,7 +601,7 @@ namespace NFastOps {
     template <size_t I_ElementSize>
     struct S_MulByConstAndAssignPerformer: public S_Performer<S_MulByConstAndAssignPerformer<I_ElementSize>, I_ElementSize, false> {
         enum : size_t {
-            c_max_register_width = 32
+            c_max_register_width = FASTOPS_MAX_REG_WIDTH
         };
         enum : size_t {
             c_batch_size = 512
@@ -496,7 +620,7 @@ namespace NFastOps {
     template <size_t I_ElementSize>
     struct S_XMul1MinusXPerformer: public S_Performer<S_XMul1MinusXPerformer<I_ElementSize>, I_ElementSize, false> { // x * (1. - x)
         enum : size_t {
-            c_max_register_width = 32
+            c_max_register_width = FASTOPS_MAX_REG_WIDTH
         };
         enum : size_t {
             c_batch_size = 512
@@ -514,7 +638,7 @@ namespace NFastOps {
     template <size_t I_ElementSize>
     struct S_1MinusX2Performer: public S_Performer<S_1MinusX2Performer<I_ElementSize>, I_ElementSize, false> { // 1. - x*x
         enum : size_t {
-            c_max_register_width = 32
+            c_max_register_width = FASTOPS_MAX_REG_WIDTH
         };
         enum : size_t {
             c_batch_size = 512
@@ -533,7 +657,7 @@ namespace NFastOps {
     template <size_t I_ElementSize>
     struct S_MulByConstAndAddPerformer: public S_Performer<S_MulByConstAndAddPerformer<I_ElementSize>, I_ElementSize, true> {
         enum : size_t {
-            c_max_register_width = 32
+            c_max_register_width = FASTOPS_MAX_REG_WIDTH
         };
         enum : size_t {
             c_batch_size = 512
@@ -552,7 +676,7 @@ namespace NFastOps {
     template <size_t I_ElementSize>
     struct S_AddPerformer: public S_Performer<S_AddPerformer<I_ElementSize>, I_ElementSize, true> {
         enum : size_t {
-            c_max_register_width = 32
+            c_max_register_width = FASTOPS_MAX_REG_WIDTH
         };
         enum : size_t {
             c_batch_size = 512
@@ -569,7 +693,7 @@ namespace NFastOps {
     template <size_t I_ElementSize>
     struct S_SubPerformer: public S_Performer<S_SubPerformer<I_ElementSize>, I_ElementSize, true> {
         enum : size_t {
-            c_max_register_width = 32
+            c_max_register_width = FASTOPS_MAX_REG_WIDTH
         };
         enum : size_t {
             c_batch_size = 512
@@ -586,7 +710,7 @@ namespace NFastOps {
     template <size_t I_ElementSize>
     struct S_AddSquaredPerformer: public S_Performer<S_AddSquaredPerformer<I_ElementSize>, I_ElementSize, true> {
         enum : size_t {
-            c_max_register_width = 32
+            c_max_register_width = FASTOPS_MAX_REG_WIDTH
         };
         enum : size_t {
             c_batch_size = 512
@@ -658,7 +782,7 @@ namespace NFastOps {
 
     template <size_t I_ElementSize, bool I_Exact = true>
     struct S_Pow: public S_Performer<S_Pow<I_ElementSize, I_Exact>, I_ElementSize, false> {
-        constexpr static size_t c_max_register_width = 32; //in bytes
+        constexpr static size_t c_max_register_width = FASTOPS_MAX_REG_WIDTH; //in bytes
         constexpr static size_t c_batch_size = 128;        //in bytes
 
         template <size_t I_NOfElements, bool, class P_CTF, typename... P_Params>
@@ -673,7 +797,7 @@ namespace NFastOps {
 
     template <size_t I_ElementSize, bool I_Exact = true>
     struct S_Sigmoid: public S_Performer<S_Sigmoid<I_ElementSize, I_Exact>, I_ElementSize, false> {
-        constexpr static size_t c_max_register_width = 32; //in bytes
+        constexpr static size_t c_max_register_width = FASTOPS_MAX_REG_WIDTH; //in bytes
         constexpr static size_t c_batch_size = 128;        //in bytes
 
         template <size_t I_NOfElements, bool I_Int, class P_CTF, typename... P_Params>
@@ -692,7 +816,7 @@ namespace NFastOps {
     template <size_t I_ElementSize, bool I_Exact = true>
     struct S_Tanh: public S_Performer<S_Tanh<I_ElementSize, I_Exact>, I_ElementSize, false> {
         enum : size_t {
-            c_max_register_width = 32
+            c_max_register_width = FASTOPS_MAX_REG_WIDTH
         };
         enum : size_t {
             c_batch_size = 128
@@ -798,7 +922,7 @@ namespace NFastOps {
     template <size_t I_ElementSize, bool I_Exact = true>
     struct S_Ln: public S_Performer<S_Ln<I_ElementSize, I_Exact>, I_ElementSize, false> {
         enum : size_t {
-            c_max_register_width = 32
+            c_max_register_width = FASTOPS_MAX_REG_WIDTH
         };
         enum : size_t {
             c_batch_size = 64
@@ -1047,6 +1171,7 @@ namespace NFastOps {
 
     /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
     namespace NFastOpsDetail {
+#ifdef FASTOPS_X86
         FORCE_INLINE __m256i MemSetBroadcastValue() noexcept {
             return _mm256_setzero_si256();
         }
@@ -1062,6 +1187,23 @@ namespace NFastOps {
         FORCE_INLINE __m256i MemSetBroadcastValue(double val) noexcept {
             return _mm256_castpd_si256(_mm256_set1_pd(val));
         }
+#elif defined(FASTOPS_ARM64)
+        FORCE_INLINE uint8x16_t MemSetBroadcastValue() noexcept {
+            return vdupq_n_u8(0);
+        }
+        FORCE_INLINE uint8x16_t MemSetBroadcastValue(unsigned char val) noexcept {
+            return vdupq_n_u8(val);
+        }
+        FORCE_INLINE uint8x16_t MemSetBroadcastValue(char val) noexcept {
+            return vdupq_n_u8((unsigned char)val);
+        }
+        FORCE_INLINE uint8x16_t MemSetBroadcastValue(float val) noexcept {
+            return vreinterpretq_u8_f32(vdupq_n_f32(val));
+        }
+        FORCE_INLINE uint8x16_t MemSetBroadcastValue(double val) noexcept {
+            return vreinterpretq_u8_f64(vdupq_n_f64(val));
+        }
+#endif
     }
 
     template <bool I_Int, int I_OutAligned = -1, class P_ValType, class P_Type>
@@ -1133,6 +1275,36 @@ namespace NFastOps {
 #define LOC_FUNC_NAME S_Pow<I_ElementSize, I_Exact>().Calc<I_NOfElements, false>
         AVX_FLOAT_MATH_FUNC_CALL_INTR(I_ElementSize, LOC_FUNC_NAME, ymm_x, EXP_PARAMS_COMMON(c::c_1_over_ln_2), EXP_PARAMS_DOUBLE, EXP_PARAMS_FLOAT, EXP_PARAMS_APPROX);
 #undef LOC_FUNC_NAME
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    template <bool I_Exact = true, bool I_OutAligned = false, class P_Type1, class P_Type2>
+    FORCE_INLINE void AVXExp2(const P_Type1& from, size_t size, P_Type2&& to) noexcept {
+        AVX_FLOAT_EXP_LIKE_FUNC_CALL((AVXCopy<false, I_OutAligned>), S_Pow, size * c_elem_size, c::c_1_f);
+    }
+    template <bool I_Exact = true, bool I_OutAligned = false, class P_Type1, class P_Type2>
+    FORCE_INLINE void AVXExp2Move(const P_Type1& from, size_t size, P_Type2&& to) noexcept {
+        AVX_FLOAT_EXP_LIKE_FUNC_CALL((AVXMove<false, I_OutAligned>), S_Pow, size * c_elem_size, c::c_1_f);
+    }
+    template <size_t I_Size, bool I_Exact = true, bool I_OutAligned = false, class P_Type1, class P_Type2>
+    FORCE_INLINE void AVXExp2Const(const P_Type1& from, P_Type2&& to) noexcept {
+        AVX_FLOAT_EXP_LIKE_FUNC_CALL((AVXCopyConst<I_Size * c_elem_size, false, I_OutAligned>), S_Pow, c::c_1_f);
+    }
+
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+    template <bool I_Exact = true, bool I_OutAligned = false, class P_Type1, class P_Type2>
+    FORCE_INLINE void AVXExp10(const P_Type1& from, size_t size, P_Type2&& to) noexcept {
+        AVX_FLOAT_EXP_LIKE_FUNC_CALL((AVXCopy<false, I_OutAligned>), S_Pow, size * c_elem_size, c::c_log2_10);
+    }
+    template <bool I_Exact = true, bool I_OutAligned = false, class P_Type1, class P_Type2>
+    FORCE_INLINE void AVXExp10Move(const P_Type1& from, size_t size, P_Type2&& to) noexcept {
+        AVX_FLOAT_EXP_LIKE_FUNC_CALL((AVXMove<false, I_OutAligned>), S_Pow, size * c_elem_size, c::c_log2_10);
+    }
+    template <size_t I_Size, bool I_Exact = true, bool I_OutAligned = false, class P_Type1, class P_Type2>
+    FORCE_INLINE void AVXExp10Const(const P_Type1& from, P_Type2&& to) noexcept {
+        AVX_FLOAT_EXP_LIKE_FUNC_CALL((AVXCopyConst<I_Size * c_elem_size, false, I_OutAligned>), S_Pow, c::c_log2_10);
     }
 
     //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

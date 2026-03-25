@@ -4,38 +4,38 @@
 
 namespace NFastOps {
     template <bool I_Exact = false, bool I_OutAligned = false>
-    void ExpAvx(const float* from, size_t size, float* to);
+    void ExpNeon(const float* from, size_t size, float* to);
 
     template <bool I_Exact = false, bool I_OutAligned = false>
-    void ExpAvx(const double* from, size_t size, double* to);
+    void ExpNeon(const double* from, size_t size, double* to);
 
     template <bool I_Exact = false, bool I_OutAligned = false>
-    void LogAvx(const float* from, size_t size, float* to);
+    void LogNeon(const float* from, size_t size, float* to);
 
     template <bool I_Exact = false, bool I_OutAligned = false>
-    void LogAvx(const double* from, size_t size, double* to);
+    void LogNeon(const double* from, size_t size, double* to);
 
     template <bool I_Exact = false, bool I_OutAligned = false>
-    void SigmoidAvx(const float* from, size_t size, float* to);
+    void SigmoidNeon(const float* from, size_t size, float* to);
 
     template <bool I_Exact = false, bool I_OutAligned = false>
-    void SigmoidAvx(const double* from, size_t size, double* to);
+    void SigmoidNeon(const double* from, size_t size, double* to);
 
     template <bool I_Exact = false, bool I_OutAligned = false>
-    void TanhAvx(const float* from, size_t size, float* to);
+    void TanhNeon(const float* from, size_t size, float* to);
 
     template <bool I_Exact = false, bool I_OutAligned = false>
-    void TanhAvx(const double* from, size_t size, double* to);
+    void TanhNeon(const double* from, size_t size, double* to);
 
     template <bool I_Exact = false, bool I_OutAligned = false>
-    void Exp2Avx(const float* from, size_t size, float* to);
+    void Exp2Neon(const float* from, size_t size, float* to);
 
     template <bool I_Exact = false, bool I_OutAligned = false>
-    void Exp2Avx(const double* from, size_t size, double* to);
+    void Exp2Neon(const double* from, size_t size, double* to);
 
     template <bool I_Exact = false, bool I_OutAligned = false>
-    void Exp10Avx(const float* from, size_t size, float* to);
+    void Exp10Neon(const float* from, size_t size, float* to);
 
     template <bool I_Exact = false, bool I_OutAligned = false>
-    void Exp10Avx(const double* from, size_t size, double* to);
+    void Exp10Neon(const double* from, size_t size, double* to);
 }

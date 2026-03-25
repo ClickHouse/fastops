@@ -1,14 +1,18 @@
 #include "opts.h"
 
 #include <fastops/fastops.h>
+#if !(defined(__aarch64__) || defined(__arm__))
 #include <fastops/avx/ops_avx.h>
 #include <fastops/avx2/ops_avx2.h>
+#endif
 #include <fastops/plain/ops_plain.h>
 
 #include <iostream>
 
+#if !(defined(__aarch64__) || defined(__arm__))
 #include <xmmintrin.h>
 #include <pmmintrin.h>
+#endif
 
 #include <math.h>
 
@@ -17,6 +21,11 @@ static double GetRelError(double real, double approx) {
 }
 
 int main(int argc, char** argv) {
+#if defined(__aarch64__) || defined(__arm__)
+    std::cerr << "Eval tool is not supported on this architecture." << std::endl;
+    (void)argc; (void)argv;
+    return 0;
+#else
     TEvalOpts opts = ParseOptions(argc, argv);
 
     if (opts.NoDenormals) {
@@ -28,8 +37,8 @@ int main(int argc, char** argv) {
         std::cerr << "requirement arch == \"plain\" || arch == \"avx2\" || arch == \"avx\" failed" << std::endl;
         exit(1);
     }
-    if (!(opts.Func == "exp" || opts.Func == "log" || opts.Func == "sigm" || opts.Func == "tanh")) {
-        std::cerr << "requirement func == \"exp\" || func == \"log\" || func == \"sigm\" || func == \"tanh\" failed" << std::endl;
+    if (!(opts.Func == "exp" || opts.Func == "exp2" || opts.Func == "exp10" || opts.Func == "log" || opts.Func == "sigm" || opts.Func == "tanh")) {
+        std::cerr << "requirement func == \"exp\" || func == \"exp2\" || func == \"exp10\" || func == \"log\" || func == \"sigm\" || func == \"tanh\" failed" << std::endl;
         exit(1);
     }
 
@@ -91,6 +100,122 @@ int main(int argc, char** argv) {
                         NFastOps::ExpAvx<false, false>(&input, 1, &approxVal);
                     } else {
                         NFastOps::ExpPlain(&input, 1, &approxVal);
+                    }
+                }
+                error = GetRelError(trueVal, approxVal);
+                if (opts.Print) {
+                    std::cout << input << "\t" << trueVal << "\t" << approxVal << "\t" << error << std::endl;
+                }
+            }
+            if (error > maxError) {
+                maxError = error;
+            }
+        }
+    } else if (opts.Func == "exp2") {
+        for (size_t i = 0; i < n + 1; ++i) {
+            double error = 0;
+            if (!opts.UseDouble) {
+                float input = lo + (hi - lo) * i * 1.0 / n;
+                float trueVal = exp2(input);
+                float approxVal;
+                if (opts.Exact) {
+                    if (isAvx2) {
+                        NFastOps::Exp2Avx2<true, false>(&input, 1, &approxVal);
+                    } else if (isAvx) {
+                        NFastOps::Exp2Avx<true, false>(&input, 1, &approxVal);
+                    } else {
+                        NFastOps::Exp2Plain(&input, 1, &approxVal);
+                    }
+                } else {
+                    if (isAvx2) {
+                        NFastOps::Exp2Avx2<false, false>(&input, 1, &approxVal);
+                    } else if (isAvx) {
+                        NFastOps::Exp2Avx<false, false>(&input, 1, &approxVal);
+                    } else {
+                        NFastOps::Exp2Plain(&input, 1, &approxVal);
+                    }
+                }
+                error = GetRelError(trueVal, approxVal);
+                if (opts.Print) {
+                    std::cout << input << "\t" << trueVal << "\t" << approxVal << "\t" << error << std::endl;
+                }
+            } else {
+                double input = lo + (hi - lo) * i * 1.0 / n;
+                double trueVal = exp2(input);
+                double approxVal;
+                if (opts.Exact) {
+                    if (isAvx2) {
+                        NFastOps::Exp2Avx2<true, false>(&input, 1, &approxVal);
+                    } else if (isAvx) {
+                        NFastOps::Exp2Avx<true, false>(&input, 1, &approxVal);
+                    } else {
+                        NFastOps::Exp2Plain(&input, 1, &approxVal);
+                    }
+                } else {
+                    if (isAvx2) {
+                        NFastOps::Exp2Avx2<false, false>(&input, 1, &approxVal);
+                    } else if (isAvx) {
+                        NFastOps::Exp2Avx<false, false>(&input, 1, &approxVal);
+                    } else {
+                        NFastOps::Exp2Plain(&input, 1, &approxVal);
+                    }
+                }
+                error = GetRelError(trueVal, approxVal);
+                if (opts.Print) {
+                    std::cout << input << "\t" << trueVal << "\t" << approxVal << "\t" << error << std::endl;
+                }
+            }
+            if (error > maxError) {
+                maxError = error;
+            }
+        }
+    } else if (opts.Func == "exp10") {
+        for (size_t i = 0; i < n + 1; ++i) {
+            double error = 0;
+            if (!opts.UseDouble) {
+                float input = lo + (hi - lo) * i * 1.0 / n;
+                float trueVal = pow(10.0f, input);
+                float approxVal;
+                if (opts.Exact) {
+                    if (isAvx2) {
+                        NFastOps::Exp10Avx2<true, false>(&input, 1, &approxVal);
+                    } else if (isAvx) {
+                        NFastOps::Exp10Avx<true, false>(&input, 1, &approxVal);
+                    } else {
+                        NFastOps::Exp10Plain(&input, 1, &approxVal);
+                    }
+                } else {
+                    if (isAvx2) {
+                        NFastOps::Exp10Avx2<false, false>(&input, 1, &approxVal);
+                    } else if (isAvx) {
+                        NFastOps::Exp10Avx<false, false>(&input, 1, &approxVal);
+                    } else {
+                        NFastOps::Exp10Plain(&input, 1, &approxVal);
+                    }
+                }
+                error = GetRelError(trueVal, approxVal);
+                if (opts.Print) {
+                    std::cout << input << "\t" << trueVal << "\t" << approxVal << "\t" << error << std::endl;
+                }
+            } else {
+                double input = lo + (hi - lo) * i * 1.0 / n;
+                double trueVal = pow(10.0, input);
+                double approxVal;
+                if (opts.Exact) {
+                    if (isAvx2) {
+                        NFastOps::Exp10Avx2<true, false>(&input, 1, &approxVal);
+                    } else if (isAvx) {
+                        NFastOps::Exp10Avx<true, false>(&input, 1, &approxVal);
+                    } else {
+                        NFastOps::Exp10Plain(&input, 1, &approxVal);
+                    }
+                } else {
+                    if (isAvx2) {
+                        NFastOps::Exp10Avx2<false, false>(&input, 1, &approxVal);
+                    } else if (isAvx) {
+                        NFastOps::Exp10Avx<false, false>(&input, 1, &approxVal);
+                    } else {
+                        NFastOps::Exp10Plain(&input, 1, &approxVal);
                     }
                 }
                 error = GetRelError(trueVal, approxVal);
@@ -280,4 +405,5 @@ int main(int argc, char** argv) {
         }
     }
     std::cout << "Maximum relative error: " << maxError << std::endl;
+#endif
 }

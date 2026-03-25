@@ -39,6 +39,10 @@
 		#define MIE_ALIGN(x) __declspec(align(x))
 	#endif
 #else
+	#ifndef MIE_ALIGN
+		#define MIE_ALIGN(x) __attribute__((aligned(x)))
+	#endif
+	#if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
 	#ifndef __GNUC_PREREQ
 	#define __GNUC_PREREQ(major, minor) ((((__GNUC__) << 16) + (__GNUC_MINOR__)) >= (((major) << 16) + (minor)))
 	#endif
@@ -49,8 +53,6 @@
 		/* GCC 4.1, 4.2, and 4.3 do not have x86intrin.h, directly include SSE2 header */
 		#include <emmintrin.h>
 	#endif
-	#ifndef MIE_ALIGN
-		#define MIE_ALIGN(x) __attribute__((aligned(x)))
 	#endif
 #endif
 #ifndef MIE_PACK
@@ -438,7 +440,7 @@ inline float exp(float x)
 	using namespace local;
 	const ExpVar<>& expVar = C<>::expVar();
 
-#if 1
+#if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
 	__m128 x1 = _mm_set_ss(x);
 
 	int limit = _mm_cvtss_si32(x1) & 0x7fffffff;
@@ -477,7 +479,7 @@ inline double expd(double x)
 	if (x >= 709.78271289338397) return std::numeric_limits<double>::infinity();
 	using namespace local;
 	const ExpdVar<>& c = C<>::expdVar();
-#if 1
+#if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
 	const double _b = double(uint64_t(3) << 51);
 	__m128d b = _mm_load_sd(&_b);
 	__m128d xx = _mm_load_sd(&x);
@@ -511,6 +513,7 @@ inline double expd(double x)
 #endif
 }
 
+#if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
 inline __m128d exp_pd(__m128d x)
 {
 #if 0 // faster on Haswell
@@ -557,7 +560,9 @@ __m128i iaxL = _mm_castpd_si128(_mm_load_sd((const double*)&c.tbl[adr0]));
 	return y;
 #endif
 }
+#endif // x86
 
+#if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
 /*
 	px : pointer to array of double
 	n : size of array(assume multiple of 2 or 4)
@@ -646,7 +651,9 @@ inline void expd_v(double *px, size_t n)
 		px[i] = expd(px[i]);
 	}
 }
+#endif // x86
 
+#if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
 #ifdef FMATH_USE_XBYAK
 inline __m128 exp_psC(__m128 x)
 #else
@@ -755,6 +762,7 @@ inline __m256 exp_ps256(__m256 x)
 	return t;
 }
 #endif
+#endif // x86
 
 inline float log(float x)
 {
@@ -772,6 +780,7 @@ inline float log(float x)
 	return f;
 }
 
+#if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
 inline __m128 log_ps(__m128 x)
 {
 	using namespace local;
@@ -815,6 +824,7 @@ inline __m128 log_ps(__m128 x)
 	rev = _mm_mul_ps(b2, rev);
 	return _mm_add_ps(a, rev);
 }
+#endif // x86
 
 #ifndef __CYGWIN__
 // cygwin defines log2() in global namespace!
@@ -869,7 +879,7 @@ public:
 };
 
 // for Xbyak version
-#ifdef FMATH_USE_XBYAK
+#if (defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)) && defined(FMATH_USE_XBYAK)
 float exp(float x) {
 	static float (*const jitExp)(float) = local::C<>::getInstance().exp_;
 	return jitExp(x);
@@ -887,6 +897,7 @@ __m128 (*const exp_ps)(__m128) = local::C<>::getInstance().exp_ps_;
 // exp2(x) = pow(2, x)
 inline float exp2(float x) { return fmath::exp(x * 0.6931472f); }
 
+#if defined(__x86_64__) || defined(_M_X64) || defined(_M_AMD64) || defined(__i386__) || defined(_M_IX86)
 /*
 	this function may be optimized in the future
 */
@@ -908,6 +919,7 @@ inline __m128d pow_pd(__m128d x, __m128d y)
 {
 	return exp_pd(_mm_mul_pd(y, log_pd(x)));
 }
+#endif // x86
 
 } // fmath
 

@@ -14,4 +14,10 @@ namespace NFastOps {
 
     void TanhPlain(const float* from, size_t size, float* to);
     void TanhPlain(const double* from, size_t size, double* to);
+
+    void Exp2Plain(const float* from, size_t size, float* to);
+    void Exp2Plain(const double* from, size_t size, double* to);
+
+    void Exp10Plain(const float* from, size_t size, float* to);
+    void Exp10Plain(const double* from, size_t size, double* to);
 }
