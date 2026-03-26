@@ -25,9 +25,8 @@ bool HaveSve() {
 }
 
 bool SveVectorLengthGt128() {
-    if (!HaveSve())
-        return false;
-    return svcntb() > 16;
+    static bool result = HaveSve() && svcntb() > 16;
+    return result;
 }
 
 // SVE kernel wrappers — call the existing generic kernels with N=0 (SVE VLA tag).
