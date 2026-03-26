@@ -1396,12 +1396,12 @@ namespace NFastOps {
         FORCE_INLINE static int TestCF(t_f v1, t_f v2) {
             uint32x4_t bits_lo = vbicq_u32(vreinterpretq_u32_f32(v2.lo), vreinterpretq_u32_f32(v1.lo));
             uint32x4_t bits_hi = vbicq_u32(vreinterpretq_u32_f32(v2.hi), vreinterpretq_u32_f32(v1.hi));
-            return (vmaxvq_u32(bits_lo) | vmaxvq_u32(bits_hi)) == 0;
+            return vmaxvq_u32(vorrq_u32(bits_lo, bits_hi)) == 0;
         }
         FORCE_INLINE static int TestZF(t_f v1, t_f v2) {
             uint32x4_t bits_lo = vandq_u32(vreinterpretq_u32_f32(v1.lo), vreinterpretq_u32_f32(v2.lo));
             uint32x4_t bits_hi = vandq_u32(vreinterpretq_u32_f32(v1.hi), vreinterpretq_u32_f32(v2.hi));
-            return (vmaxvq_u32(bits_lo) | vmaxvq_u32(bits_hi)) == 0;
+            return vmaxvq_u32(vorrq_u32(bits_lo, bits_hi)) == 0;
         }
 
         FORCE_INLINE static t_f AndF(t_f v1, t_f v2) {
@@ -1680,14 +1680,14 @@ namespace NFastOps {
         FORCE_INLINE static int TestCF(t_f v1, t_f v2) {
             uint64x2_t bits_lo = vbicq_u64(vreinterpretq_u64_f64(v2.lo), vreinterpretq_u64_f64(v1.lo));
             uint64x2_t bits_hi = vbicq_u64(vreinterpretq_u64_f64(v2.hi), vreinterpretq_u64_f64(v1.hi));
-            return (vgetq_lane_u64(bits_lo, 0) | vgetq_lane_u64(bits_lo, 1) |
-                    vgetq_lane_u64(bits_hi, 0) | vgetq_lane_u64(bits_hi, 1)) == 0;
+            uint64x2_t combined = vorrq_u64(bits_lo, bits_hi);
+            return (vgetq_lane_u64(combined, 0) | vgetq_lane_u64(combined, 1)) == 0;
         }
         FORCE_INLINE static int TestZF(t_f v1, t_f v2) {
             uint64x2_t bits_lo = vandq_u64(vreinterpretq_u64_f64(v1.lo), vreinterpretq_u64_f64(v2.lo));
             uint64x2_t bits_hi = vandq_u64(vreinterpretq_u64_f64(v1.hi), vreinterpretq_u64_f64(v2.hi));
-            return (vgetq_lane_u64(bits_lo, 0) | vgetq_lane_u64(bits_lo, 1) |
-                    vgetq_lane_u64(bits_hi, 0) | vgetq_lane_u64(bits_hi, 1)) == 0;
+            uint64x2_t combined = vorrq_u64(bits_lo, bits_hi);
+            return (vgetq_lane_u64(combined, 0) | vgetq_lane_u64(combined, 1)) == 0;
         }
 
         FORCE_INLINE static t_f AndF(t_f v1, t_f v2) {
