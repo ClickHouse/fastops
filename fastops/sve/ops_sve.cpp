@@ -8,8 +8,15 @@
 // runtime detection and return false on other platforms.
 #if defined(__linux__)
 #include <sys/auxv.h>
+#include <sys/prctl.h>
 #ifndef HWCAP_SVE
 #define HWCAP_SVE (1 << 22)
+#endif
+#ifndef PR_SVE_GET_VL
+#define PR_SVE_GET_VL 51
+#endif
+#ifndef PR_SVE_VL_LEN_MASK
+#define PR_SVE_VL_LEN_MASK 0xffff
 #endif
 #endif
 
@@ -25,8 +32,27 @@ bool HaveSve() {
 }
 
 bool SveVectorLengthGt128() {
-    static bool result = HaveSve() && svcntb() > 16;
+#if defined(__linux__)
+    // This translation unit is compiled with -march=armv8-a+sve, so the
+    // compiler is free to emit SVE instructions for any SVE intrinsic — even
+    // ones placed after a runtime guard. In practice it elides the
+    // short-circuit and executes the intrinsic unconditionally, which crashes
+    // with SIGILL on CPUs that do not implement SVE. Use the PR_SVE_GET_VL
+    // syscall instead of svcntb to query the vector length: it is a regular
+    // syscall, so it cannot be lowered to an SVE instruction and is safe to
+    // call on any kernel regardless of CPU support.
+    static bool result = []() {
+        if (!HaveSve())
+            return false;
+        int vl = prctl(PR_SVE_GET_VL);
+        if (vl < 0)
+            return false;
+        return (vl & PR_SVE_VL_LEN_MASK) > 16;
+    }();
     return result;
+#else
+    return false;
+#endif
 }
 
 // SVE kernel wrappers — call the existing generic kernels with N=0 (SVE VLA tag).
