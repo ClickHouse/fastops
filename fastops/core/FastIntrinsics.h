@@ -768,11 +768,20 @@ namespace NFastOps {
                 ymm_xfi = t::SLLI(ymm_xfi, c::ci_bits_in_mantissa);
                 ymm_res = t::CastF(t::Add(ymm_xfi, t::CastI(ymm_res)));
             }
-            t_f ymm_nan_mask = t::template CmpF<_CMP_EQ_OQ>(ymm_x_orig, ymm_x_orig); //nan's are not equal to themselves, infinities are, so here we can get a perfect behavior: nan's stay nan's, -inf -> 0.f, +inf -> +inf
-            ymm_res = t::BlendVF(ymm_x_orig, ymm_res, ymm_nan_mask);
         } else {
             ymm_xfi = t::SLLI(ymm_xfi, c::ci_bits_in_mantissa);
             ymm_res = t::CastF(t::Add(ymm_xfi, t::CastI(ymm_res)));
+        }
+#ifdef FASTOPS_ARM64
+        // FMIN/FMAX propagate NaN and float-to-int conversion of NaN gives 0, so the approximate result is already NaN.
+        constexpr bool c_restore_nan = I_Exact;
+#else
+        // x86 min/max return the clamp bound for a NaN, and the double CVTF2I keeps NaN payload bits.
+        constexpr bool c_restore_nan = true;
+#endif
+        if constexpr (c_restore_nan) {
+            t_f ymm_nan_mask = t::template CmpF<_CMP_EQ_OQ>(ymm_x_orig, ymm_x_orig); //nan's are not equal to themselves, infinities are, so nan's stay nan's
+            ymm_res = t::BlendVF(ymm_x_orig, ymm_res, ymm_nan_mask);
         }
         return ymm_res;
     }
